@@ -321,9 +321,14 @@ const Game = ({ init }: { init: InitResponse }) => {
           </div>
         ) : todayUrl ? (
           <div className="replay-bar today-bar">
-            <span>Old puzzle. Today is Flock #{init.today}.</span>
+            <span>
+              <span className="today-long">
+                Old puzzle. Today is Flock #{init.today}.
+              </span>
+              <span className="today-short">Older puzzle</span>
+            </span>
             <button type="button" className="btn primary" onClick={goToday}>
-              Play today →
+              Play #{init.today} →
             </button>
           </div>
         ) : showChallenge && challenge ? (
@@ -406,20 +411,35 @@ const Game = ({ init }: { init: InitResponse }) => {
           />
         </div>
 
-        <div className="controls">
-          {state.status === 'won' && card ? (
+        {state.status === 'won' ? (
+          // After a solve the arrows do nothing, so the row offers the two useful actions.
+          <div className="controls done">
             <button
               type="button"
-              className="ctl wide"
+              className="ctl wide result"
               onClick={() => setCardOpen(true)}
+              disabled={replay !== null || card === null}
+            >
+              See result
+            </button>
+            <button
+              type="button"
+              className="ctl wide-alt restart"
+              onClick={() => {
+                setCardOpen(false);
+                dispatch({ type: 'restart' });
+              }}
               disabled={replay !== null}
             >
-              Result
+              <RestartIcon />
+              <span>Play again</span>
             </button>
-          ) : (
+          </div>
+        ) : (
+          <div className="controls">
             <button
               type="button"
-              className="ctl"
+              className="ctl undo"
               aria-label="Undo"
               title="Undo"
               onClick={onUndo}
@@ -427,35 +447,32 @@ const Game = ({ init }: { init: InitResponse }) => {
             >
               <UndoIcon />
             </button>
-          )}
-          <div className="dpad" role="group" aria-label="Directions">
-            {ARROWS.map((arrow) => (
-              <button
-                key={arrow.dir}
-                type="button"
-                className={`ctl arrow ${arrow.cls}`}
-                aria-label={arrow.label}
-                disabled={locked}
-                onClick={() => onMove(arrow.dir)}
-              >
-                <ArrowIcon dir={arrow.dir} />
-              </button>
-            ))}
+            <div className="dpad" role="group" aria-label="Directions">
+              {ARROWS.map((arrow) => (
+                <button
+                  key={arrow.dir}
+                  type="button"
+                  className={`ctl arrow ${arrow.cls}`}
+                  aria-label={arrow.label}
+                  disabled={locked}
+                  onClick={() => onMove(arrow.dir)}
+                >
+                  <ArrowIcon dir={arrow.dir} />
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="ctl restart"
+              aria-label="Restart"
+              title="Restart"
+              onClick={() => dispatch({ type: 'restart' })}
+              disabled={moves === 0 || locked}
+            >
+              <RestartIcon />
+            </button>
           </div>
-          <button
-            type="button"
-            className="ctl"
-            aria-label={state.status === 'won' ? 'Play again' : 'Restart'}
-            title={state.status === 'won' ? 'Play again' : 'Restart'}
-            onClick={() => {
-              setCardOpen(false);
-              dispatch({ type: 'restart' });
-            }}
-            disabled={moves === 0 || replay !== null}
-          >
-            <RestartIcon />
-          </button>
-        </div>
+        )}
       </div>
 
       <div className="sr-only" aria-live="polite">

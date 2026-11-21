@@ -153,11 +153,36 @@ button:focus-visible,
     padding: 2px 7px;
   }
 
-  /* Controls become a small d-pad with undo and restart either side. */
+  /* Controls become a small d-pad with undo and restart either side.
+     Every part has a fixed cell, so nothing can slide into the wrong column. */
   .stage .controls {
     display: grid;
-    grid-template-columns: 44px 1fr 44px;
+    grid-template-columns: 44px auto 44px;
+    justify-content: space-between;
     align-items: end;
+  }
+
+  .stage .controls > .undo {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .stage .controls > .dpad {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .stage .controls > .restart {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  /* After a solve: two full-width buttons stacked in the panel. */
+  .stage .controls.done {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
   .stage .dpad {
@@ -184,9 +209,16 @@ button:focus-visible,
     grid-row: 2;
   }
 
-  .stage .ctl.wide {
-    grid-column: 1 / span 3;
-    order: 9;
+  .stage .controls.done .ctl {
+    width: 100%;
+    max-width: none;
+    /* In a column, flex: 1 would stretch the buttons vertically. */
+    flex: none;
+  }
+
+  /* The panel is narrow; let the goal line wrap instead of being cut. */
+  .stage .home-text {
+    white-space: normal;
   }
 }
 
@@ -655,14 +687,41 @@ button:focus-visible,
   color: var(--accent-dark);
 }
 
-.ctl.wide {
+.ctl.wide,
+.ctl.wide-alt {
   width: auto;
-  padding: 0 14px;
+  padding: 0 16px;
   font-size: 15px;
   font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ctl.wide {
   background: var(--accent);
   color: #fff;
   box-shadow: 0 3px 0 var(--accent-dark);
+}
+
+.ctl.wide-alt {
+  background: var(--card);
+}
+
+.ctl.wide-alt .icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* After a solve, the stacked layout shows two equal buttons. */
+.controls.done .ctl {
+  flex: 1;
+  max-width: 220px;
+}
+
+.today-short {
+  display: none;
 }
 
 .ctl:active:not(:disabled) {
@@ -670,8 +729,12 @@ button:focus-visible,
   box-shadow: 0 1px 0 var(--press);
 }
 
+/* A solid pale fill, so the hills behind never show through a disabled button. */
 .ctl:disabled {
-  opacity: 0.4;
+  opacity: 1;
+  background: #f4efe2;
+  color: #c3bba5;
+  box-shadow: 0 2px 0 #e4dbc4;
   cursor: default;
 }
 
@@ -959,14 +1022,57 @@ button:focus-visible,
   .home-word {
     display: none;
   }
+
+  /* A lighter status bar on phones: plain numbers split by thin dividers,
+     wrapping to a second line rather than clipping if text is enlarged. */
   .hud {
-    padding: 6px 8px;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  .home-count {
+    flex: none;
   }
   .hud-stats {
-    gap: 4px;
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: 2px;
+    gap: 0;
   }
   .stat {
-    padding: 2px 6px;
+    background: none;
+    border-radius: 0;
+    padding: 0 7px;
+    border-left: 2px solid #ece3cc;
+  }
+  .stat:first-child {
+    border-left: none;
+  }
+  .stat.best.at-par {
+    background: none;
+    color: var(--accent-dark);
+  }
+  .stat.crown {
+    background: none;
+    color: #9a6400;
+  }
+  .stat.crown.got,
+  .stat.crown.done {
+    border-left-color: transparent;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  /* Short wording keeps the old-puzzle banner on one line. */
+  .today-long {
+    display: none;
+  }
+  .today-short {
+    display: inline;
+  }
+  .today-bar .btn {
+    white-space: nowrap;
   }
 }
 
@@ -976,13 +1082,7 @@ button:focus-visible,
     font-size: 11px;
   }
   .stat {
-    padding: 2px 6px;
-  }
-  .hud-stats {
-    gap: 4px;
-  }
-  .home-word {
-    display: none;
+    padding: 0 5px;
   }
   /* The rings fill in as birds land, which is enough at this width. */
   .home-text {
