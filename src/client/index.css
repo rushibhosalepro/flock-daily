@@ -540,6 +540,10 @@ button:focus-visible,
   background: var(--paper);
 }
 
+.today-bar {
+  background: #e3f4ea;
+}
+
 .replay-bar .btn {
   min-height: 34px;
   padding: 4px 12px;

@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { context, reddit } from '@devvit/web/server';
 import { replay } from '../../shared/engine/step.ts';
+import { getPostUrl } from '../core/post.ts';
 import { getPuzzle, getToday } from '../core/puzzle.ts';
 import {
   bumpStreak,
@@ -53,18 +54,22 @@ api.get('/init', async (c) => {
     const day = dayFromPostData(context.postData) ?? today;
     const puzzle = await getPuzzle(day);
     const userId = context.userId;
-    const [username, best, streak, stats, tutorialDone] = await Promise.all([
-      reddit.getCurrentUsername(),
-      userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
-      getStreak(userId),
-      getStats(day),
-      getTutorialDone(userId),
-    ]);
+    const isToday = day === today;
+    const [username, best, streak, stats, tutorialDone, todayUrl] =
+      await Promise.all([
+        reddit.getCurrentUsername(),
+        userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
+        getStreak(userId),
+        getStats(day),
+        getTutorialDone(userId),
+        isToday ? Promise.resolve(null) : getPostUrl(today),
+      ]);
     return c.json<InitResponse>({
       type: 'init',
       puzzle,
       today,
-      isToday: day === today,
+      isToday,
+      todayUrl,
       username: username ?? null,
       tutorialDone,
       best,

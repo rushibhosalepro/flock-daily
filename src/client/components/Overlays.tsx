@@ -44,6 +44,8 @@ type ResultCardProps = {
   onClose: () => void;
   onReplay: () => void;
   onWatch: () => void;
+  /** Opens today's post. Null on today's post, or when its link is unknown. */
+  onToday: (() => void) | null;
 };
 
 const HEADLINE: Record<ResultInfo['rating'], string> = {
@@ -69,6 +71,7 @@ export const ResultCard = ({
   onClose,
   onReplay,
   onWatch,
+  onToday,
 }: ResultCardProps) => {
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
   const share = resultText({
@@ -105,6 +108,10 @@ export const ResultCard = ({
         ) : null}
         {isToday ? (
           <NextPuzzle />
+        ) : onToday ? (
+          <button type="button" className="btn primary" onClick={onToday}>
+            Play today&apos;s puzzle: Flock #{today} →
+          </button>
         ) : (
           <p className="muted">
             Practice puzzle, so your streak is unchanged. Today&apos;s puzzle is

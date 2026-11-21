@@ -13,6 +13,7 @@ import type { Dir } from '../shared/engine/types.ts';
 import type { GameState } from './hooks/useGame.ts';
 import { Celebrate } from './components/Celebrate.tsx';
 import { readShareData } from './share.ts';
+import { navigateTo, showToast } from '@devvit/web/client';
 import type {
   DayStats,
   InitResponse,
@@ -225,7 +226,17 @@ const Game = ({ init }: { init: InitResponse }) => {
   const showChallenge =
     challenge !== null && best === null && state.status !== 'won';
   const sender = challenge?.by ? `u/${challenge.by}` : 'A friend';
-  const hasBanner = replay !== null || showChallenge || puzzle.twist;
+  const todayUrl = init.isToday ? null : init.todayUrl;
+  const goToday = () => {
+    if (!todayUrl) return;
+    try {
+      navigateTo(todayUrl);
+    } catch {
+      showToast(`Find Flock #${init.today} in the subreddit's newest posts.`);
+    }
+  };
+  const hasBanner =
+    replay !== null || todayUrl !== null || showChallenge || puzzle.twist;
   const status =
     state.status === 'won'
       ? `Solved in ${moves} moves. Par is ${puzzle.par}.`
@@ -258,6 +269,13 @@ const Game = ({ init }: { init: InitResponse }) => {
             </span>
             <button type="button" className="btn" onClick={stopReplay}>
               Skip
+            </button>
+          </div>
+        ) : todayUrl ? (
+          <div className="replay-bar today-bar">
+            <span>Old puzzle. Today is Flock #{init.today}.</span>
+            <button type="button" className="btn primary" onClick={goToday}>
+              Play today →
             </button>
           </div>
         ) : showChallenge && challenge ? (
@@ -359,6 +377,7 @@ const Game = ({ init }: { init: InitResponse }) => {
             dispatch({ type: 'restart' });
           }}
           onWatch={startReplay}
+          onToday={todayUrl ? goToday : null}
         />
       ) : null}
       <Celebrate burst={burst} big={card?.result.rating === 'Perfect'} />

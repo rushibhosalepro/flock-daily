@@ -34,6 +34,8 @@ export type InitResponse = {
   today: number;
   /** True when this post is today's puzzle, so a solve counts toward the streak. */
   isToday: boolean;
+  /** Link to today's post, sent only when this post is an older puzzle. */
+  todayUrl: string | null;
   username: string | null;
   /** True once this player has finished the tutorial. Always false when logged out. */
   tutorialDone: boolean;

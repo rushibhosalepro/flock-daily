@@ -72,14 +72,23 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/api/init') {
-      const day = dayOf(new URL(req.headers.referer ?? url.href));
+      const pageUrl = new URL(req.headers.referer ?? url.href);
+      const day = dayOf(pageUrl);
+      // ?today=N pretends the calendar has moved on, so this post is an old puzzle.
+      const todayParam = Number(pageUrl.searchParams.get('today'));
+      const today =
+        Number.isInteger(todayParam) && todayParam > day ? todayParam : day;
       const puzzle = info(day);
       const prior = saved.get(day);
       const out = json({
         type: 'init',
         puzzle,
-        today: day,
-        isToday: true,
+        today,
+        isToday: today === day,
+        todayUrl:
+          today === day
+            ? null
+            : `http://localhost:${PORT}/game.html?day=${today}`,
         username: 'preview',
         tutorialDone,
         best: prior ? asResult(prior.best, puzzle.par) : null,
