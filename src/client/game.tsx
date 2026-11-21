@@ -206,7 +206,8 @@ const Game = ({ init }: { init: InitResponse }) => {
   }, [puzzle.day]);
 
   const startReplay = useCallback(() => {
-    const moves = card?.best.moveList ?? best?.moveList;
+    // Replay the round the card describes. When the card opens on load, that round is the best.
+    const moves = card?.result.moveList ?? best?.moveList;
     if (!moves || moves.length === 0) return;
     setCardOpen(false);
     setReplay({ frames: framesFor(puzzle.level, moves), index: 0 });
