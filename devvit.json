@@ -15,7 +15,11 @@
     "entry": "index.cjs"
   },
   "permissions": {
-    "redis": true
+    "redis": true,
+    "reddit": {
+      "enable": true,
+      "scope": "user"
+    }
   },
   "menu": {
     "items": [

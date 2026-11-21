@@ -832,22 +832,141 @@ button:focus-visible,
   flex: 1;
 }
 
-.card p.next-puzzle {
-  font-size: 15px;
-  font-weight: 800;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: #e3f4ea;
-  align-self: center;
-}
-
+/* Feathers fall inside the overlay, behind the card, so text stays readable. */
 .celebrate {
-  position: fixed;
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 20;
+  z-index: 0;
+}
+
+.card.result-card {
+  position: relative;
+  z-index: 1;
+  gap: 10px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #f3ecd9;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: inherit;
+}
+
+.result-card h2 {
+  padding: 0 36px;
+}
+
+.community {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chart {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.chart-col {
+  flex: 0 1 76px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 6px;
+  text-align: left;
+}
+
+.chart-track {
+  grid-row: 1 / 3;
+  width: 12px;
+  height: 34px;
+  border-radius: 6px;
+  background: #f3ecd9;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.chart-fill {
+  width: 100%;
+  border-radius: 6px;
+  background: #d8cba6;
+}
+
+.chart-col.mine .chart-fill {
+  background: var(--accent);
+}
+
+.chart-pct {
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.chart-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.chart-col.mine .chart-label {
+  color: var(--accent-dark);
+}
+
+.card p.first-line {
+  font-size: 13px;
+}
+
+.card p.streak-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 12px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.next-in {
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e3f4ea;
+}
+
+.preview {
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #f6f1e3;
+  box-shadow: 0 0 0 2px #ece3cc inset;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.preview-spoiler span {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #5b5d70;
+  color: #e4e5ee;
+  font-size: 13px;
 }
 
 .challenge-banner {
@@ -1001,6 +1120,22 @@ button:focus-visible,
     padding: 6px 10px;
     font-size: 15px;
   }
+  .card.result-card {
+    gap: 7px;
+  }
+  .close-btn {
+    top: 6px;
+    right: 6px;
+    width: 32px;
+    height: 32px;
+  }
+  .chart-track {
+    height: 28px;
+  }
+  .preview {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
   .tutorial-line {
     font-size: 15px;
   }
@@ -1073,6 +1208,89 @@ button:focus-visible,
   }
   .today-bar .btn {
     white-space: nowrap;
+  }
+}
+
+/* Short frames: the result card drops the preview so its buttons stay in view. */
+@container app (max-height: 470px) {
+  .result-card .preview {
+    display: none;
+  }
+  .card.result-card {
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  .result-card .close-btn {
+    top: 4px;
+    right: 4px;
+    width: 30px;
+    height: 30px;
+  }
+  .result-card h2 {
+    font-size: 20px;
+  }
+  .result-card .big {
+    font-size: 17px;
+  }
+  .result-card p,
+  .card.result-card p.crown-line {
+    font-size: 13px;
+  }
+  .result-card .chart-track {
+    height: 24px;
+  }
+}
+
+@container app (max-height: 380px) {
+  .card.result-card {
+    gap: 4px;
+    padding: 8px 12px;
+  }
+  .result-card .chart-track {
+    display: none;
+  }
+  .result-card .chart-col {
+    display: flex;
+    gap: 4px;
+    align-items: baseline;
+  }
+  .result-card .chart-pct {
+    font-size: 13px;
+  }
+  .result-card h2 {
+    font-size: 18px;
+  }
+  .result-card .big {
+    font-size: 15px;
+  }
+  .card.result-card p.streak-line {
+    font-size: 13px;
+    gap: 2px 8px;
+  }
+  .result-card .community .muted {
+    font-size: 12px;
+  }
+  .card.result-card p.crown-line {
+    padding: 3px 8px;
+  }
+  .result-card .btn {
+    min-height: 36px;
+    padding: 4px 10px;
+    font-size: 14px;
+  }
+}
+
+.result-card .lbl-short {
+  display: none;
+}
+
+/* Very narrow frames (or big text): short labels keep each button on one line. */
+@container app (max-width: 300px) {
+  .result-card .lbl-long {
+    display: none;
+  }
+  .result-card .lbl-short {
+    display: inline;
   }
 }
 

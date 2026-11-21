@@ -103,6 +103,19 @@ export const parseChallenge = (text: string | undefined): Challenge | null => {
   return { day: d, moves: m, by };
 };
 
+/**
+ * The comment a player posts to the thread: the spoiler-free result, then the
+ * solution hidden behind Reddit spoiler tags. Lines end in two spaces, which is
+ * how Reddit markdown makes a line break.
+ */
+export const commentText = (
+  args: Parameters<typeof resultText>[0] & { solution: readonly Dir[] }
+): string => {
+  const lines = resultText(args).split('\n');
+  lines.push('', `Solution: ${solutionSpoiler(args.solution)}`);
+  return lines.join('  \n');
+};
+
 /** The solution wrapped in Reddit spoiler markup, for pasting into a comment. */
 export const solutionSpoiler = (moves: readonly Dir[]): string =>
   `>!${arrows(moves)}!<`;

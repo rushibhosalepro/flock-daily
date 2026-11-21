@@ -10,8 +10,12 @@ import type { PuzzleInfo } from '../../shared/api.ts';
 const EPOCH_KEY = 'flock:epoch';
 
 /** Day-keyed data is namespaced by puzzle version, so new content never meets old results. */
+/**
+ * p puzzle cache, r first solves, s counters, b best solves, k best crown solves,
+ * h first-solve move counts, c players who commented their result.
+ */
 export const dayKey = (
-  kind: 'p' | 'r' | 's' | 'b' | 'k',
+  kind: 'p' | 'r' | 's' | 'b' | 'k' | 'h' | 'c',
   day: number
 ): string => `flock:v${PUZZLE_VERSION}:${kind}:${day}`;
 const memory = new Map<number, PuzzleInfo>();

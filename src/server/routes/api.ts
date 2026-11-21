@@ -3,8 +3,14 @@ import { context, reddit } from '@devvit/web/server';
 import { replay } from '../../shared/engine/step.ts';
 import { getPostUrl } from '../core/post.ts';
 import { getPuzzle, getToday } from '../core/puzzle.ts';
+import { commentText } from '../../shared/engine/share.ts';
 import {
   bumpStreak,
+  claimComment,
+  getCommunity,
+  getStoredResult,
+  hasCommented,
+  releaseComment,
   getStats,
   getBestCrown,
   getBestResult,
@@ -19,6 +25,7 @@ import {
 } from '../core/results.ts';
 import type { Dir } from '../../shared/engine/types.ts';
 import type {
+  CommentResponse,
   ErrorResponse,
   InitResponse,
   SubmitResponse,
@@ -26,6 +33,9 @@ import type {
 } from '../../shared/api.ts';
 
 export const api = new Hono();
+
+/** Narrows a post id to Reddit's `t3_` form without a cast. */
+const isPostId = (id: string): id is `t3_${string}` => id.startsWith('t3_');
 
 const MAX_MOVES = 200;
 
@@ -57,16 +67,28 @@ api.get('/init', async (c) => {
     const puzzle = await getPuzzle(day);
     const userId = context.userId;
     const isToday = day === today;
-    const [username, best, bestCrown, streak, stats, tutorialDone, todayUrl] =
-      await Promise.all([
-        reddit.getCurrentUsername(),
-        userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
-        userId ? getBestCrown(puzzle, userId) : Promise.resolve(null),
-        getStreak(userId),
-        getStats(day),
-        getTutorialDone(userId),
-        isToday ? Promise.resolve(null) : getPostUrl(today),
-      ]);
+    const [
+      username,
+      best,
+      bestCrown,
+      first,
+      commented,
+      streak,
+      stats,
+      tutorialDone,
+      todayUrl,
+    ] = await Promise.all([
+      reddit.getCurrentUsername(),
+      userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
+      userId ? getBestCrown(puzzle, userId) : Promise.resolve(null),
+      userId ? getStoredResult(puzzle, userId) : Promise.resolve(null),
+      hasCommented(day, userId),
+      getStreak(userId),
+      getStats(day),
+      getTutorialDone(userId),
+      isToday ? Promise.resolve(null) : getPostUrl(today),
+    ]);
+    const community = await getCommunity(puzzle, first?.moves ?? null);
     return c.json<InitResponse>({
       type: 'init',
       puzzle,
@@ -77,6 +99,9 @@ api.get('/init', async (c) => {
       tutorialDone,
       best,
       bestCrown,
+      first,
+      commented,
+      community,
       streak,
       stats,
     });
@@ -101,6 +126,65 @@ api.post('/tutorial-done', async (c) => {
     console.error('tutorial-done failed', error);
     return c.json<ErrorResponse>(
       { status: 'error', message: 'Could not save tutorial progress' },
+      500
+    );
+  }
+});
+
+/**
+ * Posts the player's result as a comment on this post, as the player.
+ * The text is built here from the player's verified best solve, never from the
+ * client, and each player can post at most once per puzzle.
+ */
+api.post('/comment', async (c) => {
+  const userId = context.userId;
+  const postId = context.postId;
+  if (!userId || !postId) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Log in to Reddit to comment' },
+      401
+    );
+  }
+  try {
+    const today = await getToday();
+    const day = dayFromPostData(context.postData) ?? today;
+    const puzzle = await getPuzzle(day);
+    const [best, bestCrown, streak] = await Promise.all([
+      getBestResult(puzzle, userId),
+      getBestCrown(puzzle, userId),
+      getStreak(userId),
+    ]);
+    if (!best) {
+      return c.json<ErrorResponse>(
+        { status: 'error', message: 'Solve the puzzle first' },
+        400
+      );
+    }
+    if (!(await claimComment(day, userId))) {
+      return c.json<CommentResponse>({ type: 'comment', outcome: 'already' });
+    }
+    const text = commentText({
+      day,
+      moves: best.moves,
+      par: puzzle.par,
+      streak: day === today ? streak.current : 0,
+      crownPar: puzzle.crownPar,
+      crownMoves: bestCrown?.moves ?? null,
+      solution: best.moveList,
+    });
+    if (!isPostId(postId)) throw new Error(`unexpected post id ${postId}`);
+    try {
+      await reddit.submitComment({ id: postId, text, runAs: 'USER' });
+    } catch (error) {
+      // Let the player try again if Reddit refused the comment.
+      await releaseComment(day, userId);
+      throw error;
+    }
+    return c.json<CommentResponse>({ type: 'comment', outcome: 'posted' });
+  } catch (error) {
+    console.error('comment failed', error);
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Could not post the comment' },
       500
     );
   }
@@ -145,11 +229,19 @@ api.post('/submit', async (c) => {
       best = await saveBestResult(puzzle, userId, moves);
       bestCrown = await saveBestCrown(puzzle, userId, moves);
     }
+    const first =
+      (userId ? await getStoredResult(puzzle, userId) : null) ?? result;
+    const community = await getCommunity(
+      puzzle,
+      userId ? first.moves : null
+    );
     return c.json<SubmitResponse>({
       type: 'submit',
       result,
       best,
       bestCrown,
+      first,
+      community,
       recorded,
       streak,
       stats: await getStats(day),

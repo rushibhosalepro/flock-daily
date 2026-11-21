@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
   encodeChallenge,
   isCrown,
@@ -7,7 +8,12 @@ import {
   untilNextPuzzle,
 } from '../../shared/engine/share.ts';
 import type { Challenge } from '../../shared/engine/share.ts';
-import type { DayStats, ResultInfo, StreakInfo } from '../../shared/api.ts';
+import type {
+  Community,
+  DayStats,
+  ResultInfo,
+  StreakInfo,
+} from '../../shared/api.ts';
 import { copyText } from '../clipboard.ts';
 import { shareResult } from '../share.ts';
 
@@ -19,11 +25,55 @@ const NextPuzzle = () => {
     return () => clearInterval(id);
   }, []);
   return (
-    <p className="next-puzzle" aria-live="off">
-      Next puzzle in <strong>{left}</strong>
-    </p>
+    <span className="next-in">
+      Next in <strong>{left}</strong>
+    </span>
   );
 };
+
+/** Three bars of today's first solves: at par, 1 to 2 over, 3 or more over. */
+const MoveChart = ({
+  community,
+  par,
+  mine,
+}: {
+  community: Community;
+  par: number;
+  /** Which bar the player's own first solve falls in, if any. */
+  mine: number | null;
+}) => {
+  const bars = [
+    { key: 'par', label: `Par ${par}`, count: community.atPar },
+    { key: 'near', label: `${par + 1}–${par + 2}`, count: community.near },
+    { key: 'far', label: `${par + 3}+`, count: community.far },
+  ];
+  const total = bars.reduce((sum, b) => sum + b.count, 0);
+  if (total === 0) return null;
+  const myBar =
+    mine === null ? -1 : mine <= par ? 0 : mine <= par + 2 ? 1 : 2;
+  return (
+    <div className="chart" aria-label="Today's first solves">
+      {bars.map((bar, i) => {
+        const pct = Math.round((bar.count / total) * 100);
+        return (
+          <div
+            key={bar.key}
+            className={`chart-col${i === myBar ? ' mine' : ''}`}
+            title={`${bar.count} ${bar.count === 1 ? 'player' : 'players'}`}
+          >
+            <div className="chart-track">
+              <div className="chart-fill" style={{ height: `${Math.max(pct, 4)}%` }} />
+            </div>
+            <span className="chart-pct">{pct}%</span>
+            <span className="chart-label">{bar.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+export type CommentState = 'idle' | 'posting' | 'posted' | 'failed';
 
 type ResultCardProps = {
   day: number;
@@ -35,9 +85,11 @@ type ResultCardProps = {
   bestCrown: ResultInfo | null;
   /** Crown par for the day, or null when the day has no feather. */
   crownPar: number | null;
+  /** The player's first solve, which is what the daily stats count. */
+  first: ResultInfo | null;
+  community: Community;
   streak: StreakInfo;
   stats: DayStats;
-  recorded: boolean;
   loggedIn: boolean;
   isToday: boolean;
   /** Puzzle number for the current UTC day. */
@@ -46,9 +98,12 @@ type ResultCardProps = {
   username: string | null;
   /** A friend's score from the share link this post was opened with. */
   challenge: Challenge | null;
+  comment: CommentState;
+  /** Feathers drawn behind the card, so they never cover its text. */
+  celebration: ReactNode;
   onClose: () => void;
-  onReplay: () => void;
   onWatch: () => void;
+  onComment: () => void;
   /** Opens today's post. Null on today's post, or when its link is unknown. */
   onToday: (() => void) | null;
 };
@@ -60,24 +115,34 @@ const HEADLINE: Record<ResultInfo['rating'], string> = {
   Completed: 'Solved',
 };
 
+const COMMENT_LABEL: Record<CommentState, string> = {
+  idle: '💬 Post to comments',
+  posting: 'Posting…',
+  posted: '✓ Posted to comments',
+  failed: '💬 Try posting again',
+};
+
 export const ResultCard = ({
   day,
   result,
   best,
   bestCrown,
   crownPar,
+  first,
+  community,
   streak,
   stats,
-  recorded,
   loggedIn,
   isToday,
   today,
   saveError,
   username,
   challenge,
+  comment,
+  celebration,
   onClose,
-  onReplay,
   onWatch,
+  onComment,
   onToday,
 }: ResultCardProps) => {
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
@@ -89,8 +154,6 @@ export const ResultCard = ({
     crownPar,
     crownMoves: bestCrown?.moves ?? null,
   });
-  const atParPct =
-    stats.solved > 0 ? Math.round((stats.atPar / stats.solved) * 100) : 0;
   const roundCrown =
     crownPar !== null && result.feather && isCrown(result.moves, crownPar);
   const bestIsCrown =
@@ -107,6 +170,24 @@ export const ResultCard = ({
           : bestCrown
             ? `🪶 Feather in ${bestCrown.moves}. Crown par is ${crownPar}.`
             : `🪶 Bonus: grab the golden feather and finish in ${crownPar} for a Crown.`;
+  // When the first solve differs, say so, so "Perfect" next to "0% hit par" never looks wrong.
+  const showFirst =
+    first !== null && (first.moves !== result.moves || first.moves !== best.moves);
+
+  const communityLine = [
+    `${stats.solved} solved`,
+    community.beat !== null ? `fewer moves than ${community.beat}%` : null,
+    crownPar !== null && stats.crowned > 0 ? `👑 ${stats.crowned} crowned` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const copyFallback = () =>
+    void copyText(
+      `${share}\n\nSolution: ${solutionSpoiler(best.moveList)}`,
+      'Result copied. Paste it in the comments; the solution stays hidden as a spoiler.'
+    );
+
   return (
     <div
       className="overlay"
@@ -114,7 +195,17 @@ export const ResultCard = ({
       aria-modal="true"
       aria-label="Result"
     >
-      <div className="card">
+      {celebration}
+      <div className="card result-card">
+        <button
+          type="button"
+          className="close-btn"
+          aria-label="Close and see the board"
+          title="See the board"
+          onClick={onClose}
+        >
+          ✕
+        </button>
         <h2>{roundCrown ? 'Crowned! 👑' : HEADLINE[result.rating]}</h2>
         <div className="big">
           {result.moves} {result.moves === 1 ? 'move' : 'moves'} · Par{' '}
@@ -130,14 +221,39 @@ export const ResultCard = ({
             {crownLine}
           </p>
         ) : null}
-        {isToday && loggedIn && streak.current > 0 ? (
-          <p>
-            🔥 {streak.current} day streak
-            <span className="muted"> · best {streak.best}</span>
+        {challenge ? (
+          <p className="best-line">
+            {best.moves < challenge.moves
+              ? `You beat ${sender}!`
+              : best.moves === challenge.moves
+                ? `You tied ${sender}!`
+                : `${sender} still leads with ${challenge.moves} moves.`}
           </p>
         ) : null}
+
+        {stats.solved > 0 ? (
+          <div className="community">
+            <MoveChart
+              community={community}
+              par={result.par}
+              mine={first?.moves ?? null}
+            />
+            <p className="muted">{communityLine}</p>
+            {showFirst && first ? (
+              <p className="muted first-line">
+                Today&apos;s stats use your first solve: {first.moves} moves.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {isToday ? (
-          <NextPuzzle />
+          <p className="streak-line">
+            {loggedIn && streak.current > 0 ? (
+              <span>🔥 {streak.current} day streak</span>
+            ) : null}
+            <NextPuzzle />
+          </p>
         ) : onToday ? (
           <button type="button" className="btn primary" onClick={onToday}>
             Play today&apos;s puzzle: Flock #{today} →
@@ -148,41 +264,49 @@ export const ResultCard = ({
             Flock #{today}.
           </p>
         )}
-        {!loggedIn ? (
-          <p className="muted">Log in to Reddit to keep a streak.</p>
-        ) : null}
         {saveError ? (
           <p className="muted">
             Could not save this result. Check your connection.
           </p>
         ) : null}
-        {stats.solved > 0 ? (
-          <p className="muted">
-            {stats.solved} {stats.solved === 1 ? 'player has' : 'players have'}{' '}
-            solved this one · {atParPct}% hit par
-            {crownPar !== null && stats.crowned > 0
-              ? ` · ${stats.crowned} crowned`
-              : ''}
-          </p>
-        ) : null}
-        {recorded || !loggedIn || saveError ? null : (
-          <p className="muted">
-            Daily stats count each player&apos;s first solve.
-          </p>
+
+        <div className="preview" aria-label="What gets posted">
+          {share.split('\n').map((line) => (
+            <div key={line}>{line}</div>
+          ))}
+          <div className="preview-spoiler">
+            Solution: <span>hidden as a spoiler</span>
+          </div>
+        </div>
+
+        {loggedIn ? (
+          <button
+            type="button"
+            className="btn primary"
+            onClick={onComment}
+            disabled={comment === 'posting' || comment === 'posted'}
+          >
+            {COMMENT_LABEL[comment]}
+          </button>
+        ) : (
+          <button type="button" className="btn primary" onClick={copyFallback}>
+            Copy result for the comments
+          </button>
         )}
-        {challenge ? (
-          <p className="best-line">
-            {best.moves < challenge.moves
-              ? `You beat ${sender}!`
-              : best.moves === challenge.moves
-                ? `You tied ${sender}!`
-                : `${sender} still leads with ${challenge.moves} moves.`}
-          </p>
+        {comment === 'failed' ? (
+          <button
+            type="button"
+            className="link-btn solution-link"
+            onClick={copyFallback}
+          >
+            Or copy it and paste it yourself
+          </button>
         ) : null}
         <div className="row">
           <button
             type="button"
-            className="btn primary"
+            className="btn"
+            aria-label="Challenge a friend"
             onClick={() =>
               void shareResult(
                 `Flock #${day}`,
@@ -191,30 +315,17 @@ export const ResultCard = ({
               )
             }
           >
-            Share
+            <span className="lbl-long">Challenge a friend</span>
+            <span className="lbl-short">Challenge</span>
           </button>
-          <button type="button" className="btn" onClick={onWatch}>
-            Watch my solve
-          </button>
-        </div>
-        <button
-          type="button"
-          className="link-btn solution-link"
-          onClick={() =>
-            void copyText(
-              solutionSpoiler(best.moveList),
-              'Solution copied. Paste it in the comments; it stays hidden as a spoiler.'
-            )
-          }
-        >
-          Copy solution for the comments
-        </button>
-        <div className="row">
-          <button type="button" className="btn" onClick={onReplay}>
-            Play again
-          </button>
-          <button type="button" className="btn" onClick={onClose}>
-            See board
+          <button
+            type="button"
+            className="btn"
+            onClick={onWatch}
+            aria-label="Watch my solve"
+          >
+            <span className="lbl-long">Watch my solve</span>
+            <span className="lbl-short">Replay</span>
           </button>
         </div>
       </div>

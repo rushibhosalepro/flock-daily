@@ -4,6 +4,7 @@ import { replay } from '../../shared/engine/step.ts';
 import { dayKey } from './puzzle.ts';
 import type { Dir } from '../../shared/engine/types.ts';
 import type {
+  Community,
   DayStats,
   PuzzleInfo,
   ResultInfo,
@@ -113,6 +114,7 @@ export const recordResult = async (
     moves.join('')
   );
   if (!created) return false;
+  await redis.hIncrBy(dayKey('h', puzzle.day), String(moves.length), 1);
   const statsKey = dayKey('s', puzzle.day);
   await redis.hIncrBy(statsKey, 'solved', 1);
   if (moves.length === puzzle.par) {
@@ -120,6 +122,64 @@ export const recordResult = async (
   }
   return true;
 };
+
+/**
+ * Groups today's first solves for the chart, and works out what share of other
+ * solvers this player beat on their first try.
+ */
+export const getCommunity = async (
+  puzzle: PuzzleInfo,
+  myFirstMoves: number | null
+): Promise<Community> => {
+  const raw = await redis.hGetAll(dayKey('h', puzzle.day));
+  let atPar = 0;
+  let near = 0;
+  let far = 0;
+  let total = 0;
+  let worse = 0;
+  for (const [field, value] of Object.entries(raw)) {
+    const moves = Number(field);
+    const count = Number(value);
+    if (!Number.isInteger(moves) || !Number.isFinite(count) || count <= 0) {
+      continue;
+    }
+    total += count;
+    const over = moves - puzzle.par;
+    if (over <= 0) atPar += count;
+    else if (over <= 2) near += count;
+    else far += count;
+    if (myFirstMoves !== null && moves > myFirstMoves) worse += count;
+  }
+  const others = total - (myFirstMoves !== null ? 1 : 0);
+  const beat =
+    myFirstMoves !== null && others > 0
+      ? Math.round((worse / others) * 100)
+      : null;
+  return { atPar, near, far, beat };
+};
+
+/**
+ * Marks that a player has commented on this puzzle. Returns false if they
+ * already had, so each player posts their result at most once per puzzle.
+ */
+export const claimComment = async (
+  day: number,
+  userId: string
+): Promise<boolean> =>
+  (await redis.hSetNX(dayKey('c', day), userId, String(Date.now()))) === 1;
+
+export const releaseComment = async (
+  day: number,
+  userId: string
+): Promise<void> => {
+  await redis.hDel(dayKey('c', day), [userId]);
+};
+
+export const hasCommented = async (
+  day: number,
+  userId: string | undefined
+): Promise<boolean> =>
+  userId ? (await redis.hGet(dayKey('c', day), userId)) !== undefined : false;
 
 export const getStats = async (day: number): Promise<DayStats> => {
   const raw = await redis.hGetAll(dayKey('s', day));

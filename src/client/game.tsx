@@ -17,16 +17,23 @@ import { Celebrate } from './components/Celebrate.tsx';
 import { readShareData } from './share.ts';
 import { navigateTo, showToast } from '@devvit/web/client';
 import type {
+  Community,
   DayStats,
   InitResponse,
   ResultInfo,
   StreakInfo,
 } from '../shared/api.ts';
-import { fetchInit, markTutorialDone, submitMoves } from './api.ts';
+import {
+  fetchInit,
+  markTutorialDone,
+  postComment,
+  submitMoves,
+} from './api.ts';
 import { Board } from './components/Board.tsx';
 import { ArrowIcon, RestartIcon, UndoIcon } from './components/Icons.tsx';
 import { BIRD_COLORS } from './constants.ts';
 import { ResultCard } from './components/Overlays.tsx';
+import type { CommentState } from './components/Overlays.tsx';
 import { Tutorial } from './components/Tutorial.tsx';
 import { createGame, gameReducer } from './hooks/useGame.ts';
 import { useKeys, useSwipe } from './hooks/useInput.ts';
@@ -54,9 +61,10 @@ type CardData = {
   result: ResultInfo;
   best: ResultInfo;
   bestCrown: ResultInfo | null;
+  first: ResultInfo | null;
+  community: Community;
   streak: StreakInfo;
   stats: DayStats;
-  recorded: boolean;
   saveError: boolean;
 };
 
@@ -121,15 +129,34 @@ const Game = ({ init }: { init: InitResponse }) => {
           result: init.best,
           best: init.best,
           bestCrown: init.bestCrown,
+          first: init.first,
+          community: init.community,
           streak: init.streak,
           stats: init.stats,
-          recorded: true,
           saveError: false,
         }
       : null
   );
   const [cardOpen, setCardOpen] = useState(init.best !== null);
   const [burst, setBurst] = useState(0);
+  const [comment, setComment] = useState<CommentState>(
+    init.commented ? 'posted' : 'idle'
+  );
+  const sendComment = async () => {
+    setComment('posting');
+    try {
+      const response = await postComment();
+      setComment('posted');
+      showToast(
+        response.outcome === 'posted'
+          ? 'Posted to the comments'
+          : 'You already posted your result here'
+      );
+    } catch {
+      setComment('failed');
+      showToast('Could not post the comment. You can copy it instead.');
+    }
+  };
   const [replay, setReplay] = useState<{
     frames: GameState[];
     index: number;
@@ -200,9 +227,10 @@ const Game = ({ init }: { init: InitResponse }) => {
           result: outcome.result,
           best: outcome.best,
           bestCrown: outcome.bestCrown,
+          first: outcome.first,
+          community: outcome.community,
           streak: outcome.streak,
           stats: outcome.stats,
-          recorded: outcome.recorded,
           saveError: false,
         });
       } else {
@@ -230,9 +258,10 @@ const Game = ({ init }: { init: InitResponse }) => {
           result: round,
           best: nextBest,
           bestCrown: nextCrown,
+          first: init.first,
+          community: init.community,
           streak: init.streak,
           stats: init.stats,
-          recorded: false,
           saveError: true,
         });
       }
@@ -251,6 +280,8 @@ const Game = ({ init }: { init: InitResponse }) => {
     puzzle.crownPar,
     init.streak,
     init.stats,
+    init.first,
+    init.community,
   ]);
 
   const closeHelp = () => {
@@ -495,32 +526,32 @@ const Game = ({ init }: { init: InitResponse }) => {
           crownPar={puzzle.crownPar}
           streak={card.streak}
           stats={card.stats}
-          recorded={card.recorded}
+          first={card.first}
+          community={card.community}
           loggedIn={init.username !== null}
           isToday={init.isToday}
           today={init.today}
           saveError={card.saveError}
           username={init.username}
           challenge={challenge}
+          comment={comment}
+          celebration={
+            <Celebrate
+              burst={burst}
+              big={
+                card.result.rating === 'Perfect' ||
+                (card.result.feather &&
+                  puzzle.crownPar !== null &&
+                  card.result.moves <= puzzle.crownPar)
+              }
+            />
+          }
           onClose={() => setCardOpen(false)}
-          onReplay={() => {
-            setCardOpen(false);
-            dispatch({ type: 'restart' });
-          }}
           onWatch={startReplay}
+          onComment={() => void sendComment()}
           onToday={todayUrl ? goToday : null}
         />
       ) : null}
-      <Celebrate
-        burst={burst}
-        big={
-          card?.result.rating === 'Perfect' ||
-          (card !== null &&
-            card.result.feather &&
-            puzzle.crownPar !== null &&
-            card.result.moves <= puzzle.crownPar)
-        }
-      />
     </main>
   );
 };

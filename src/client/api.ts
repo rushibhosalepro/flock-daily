@@ -1,5 +1,6 @@
 import type { Dir } from '../shared/engine/types.ts';
 import type {
+  CommentResponse,
   ErrorResponse,
   InitResponse,
   SubmitRequest,
@@ -27,6 +28,17 @@ export const fetchInit = async (): Promise<InitResponse> => {
   const body: unknown = await response.json();
   if (isInit(body)) return body;
   throw new Error(isError(body) ? body.message : 'Could not load the puzzle');
+};
+
+const isComment = (value: unknown): value is CommentResponse =>
+  hasField(value, 'type', 'comment');
+
+/** Asks the server to post the player's result as a comment, as the player. */
+export const postComment = async (): Promise<CommentResponse> => {
+  const response = await fetch('/api/comment', { method: 'POST' });
+  const body: unknown = await response.json();
+  if (isComment(body)) return body;
+  throw new Error(isError(body) ? body.message : 'Could not post the comment');
 };
 
 /** Tells the server the tutorial is done. Failure is harmless: the tutorial just shows again later. */

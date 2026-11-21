@@ -4,6 +4,7 @@ import { dayNumber, daysBetween, planForDay, puzzleForDay } from './daily.ts';
 import { generateLevel, makeRng, randomLevel } from './generator.ts';
 import { TUTORIAL } from './tutorial.ts';
 import {
+  commentText,
   encodeChallenge,
   parseChallenge,
   ratingFor,
@@ -393,6 +394,27 @@ test('daily feathers are valid, cost a real detour, and never change par', () =>
     );
   }
   assert.ok(withCrown >= 54, `only ${withCrown} of 60 days have a feather`);
+});
+
+test('comment text keeps the solution behind a spoiler and uses markdown line breaks', () => {
+  const text = commentText({
+    day: 4,
+    moves: 7,
+    par: 7,
+    streak: 3,
+    crownPar: 9,
+    crownMoves: 9,
+    solution: ['U', 'R', 'D'],
+  });
+  const lines = text.split('  \n');
+  assert.equal(lines[0], 'Flock #4 🐦');
+  assert.match(text, /7 moves \(Par 7\) · Perfect/);
+  assert.match(text, /👑 Crown in 9/);
+  assert.match(text, /🔥 3 day streak/);
+  assert.equal(lines[lines.length - 1], 'Solution: >!↑→↓!<');
+  // The arrows appear only inside the spoiler.
+  const outside = text.replace(/>!.*?!</g, '');
+  assert.doesNotMatch(outside, /[↑↓←→]/);
 });
 
 test('share text shows the crown line', () => {

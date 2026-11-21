@@ -26,6 +26,8 @@ type Saved = { first: string; best: string; crown: string | null };
 const saved = new Map<number, Saved>();
 let streak = 0;
 let tutorialDone = false;
+const commented = new Set<number>();
+const community = { atPar: 17, near: 15, far: 9, beat: 63 };
 
 const json = (body: unknown, status = 200) => ({
   status,
@@ -72,8 +74,17 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ type: 'tutorial-done', saved: true }));
       return;
     }
+    if (url.pathname === '/api/comment' && req.method === 'POST') {
+      const day = dayOf(new URL(req.headers.referer ?? url.href));
+      const outcome = commented.has(day) ? 'already' : 'posted';
+      commented.add(day);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ type: 'comment', outcome }));
+      return;
+    }
     if (url.pathname === '/__reset') {
       saved.clear();
+      commented.clear();
       streak = 0;
       tutorialDone = false;
       res.writeHead(200).end('reset');
@@ -101,6 +112,9 @@ const server = createServer(async (req, res) => {
         tutorialDone,
         best: prior ? asResult(prior.best, puzzle) : null,
         bestCrown: prior?.crown ? asResult(prior.crown, puzzle) : null,
+        first: prior ? asResult(prior.first, puzzle) : null,
+        commented: commented.has(day),
+        community,
         streak: { current: streak, best: streak },
         stats: { solved: 41, atPar: 17, crowned: 5 },
       });
@@ -138,6 +152,8 @@ const server = createServer(async (req, res) => {
         result: asResult(round, puzzle),
         best: asResult(best, puzzle),
         bestCrown: crown ? asResult(crown, puzzle) : null,
+        first: asResult(prior?.first ?? round, puzzle),
+        community,
         streak: { current: streak, best: streak },
         stats: { solved: 42, atPar: 17, crowned: 6 },
       });
