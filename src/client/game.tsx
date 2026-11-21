@@ -417,11 +417,13 @@ const Game = ({ init }: { init: InitResponse }) => {
                 className={`stat crown${frame.feather ? ' got' : ''}${crowned ? ' done' : ''}`}
                 title={`Crown: every bird home with the golden feather in ${puzzle.crownPar} moves`}
               >
-                <span className="k" aria-hidden="true">
-                  👑
+                <span className="k">
+                  <span aria-hidden="true">👑 </span>Crown
                 </span>
-                <span className="sr-only">Crown par</span>
-                <b className="v">{puzzle.crownPar}</b>
+                <b className="v">
+                  {puzzle.crownPar}
+                  {crowned ? <span className="crown-check"> ✓</span> : null}
+                </b>
               </span>
             ) : null}
           </div>

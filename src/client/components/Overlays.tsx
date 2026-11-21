@@ -255,8 +255,8 @@ export const ResultCard = ({
             <NextPuzzle />
           </p>
         ) : onToday ? (
-          <button type="button" className="btn primary" onClick={onToday}>
-            Play today&apos;s puzzle: Flock #{today} →
+          <button type="button" className="today-pill" onClick={onToday}>
+            Old puzzle · Play today&apos;s Flock #{today} →
           </button>
         ) : (
           <p className="muted">
@@ -306,7 +306,7 @@ export const ResultCard = ({
           <button
             type="button"
             className="btn"
-            aria-label="Challenge a friend"
+            aria-label="Share a challenge link"
             onClick={() =>
               void shareResult(
                 `Flock #${day}`,
@@ -315,8 +315,8 @@ export const ResultCard = ({
               )
             }
           >
-            <span className="lbl-long">Challenge a friend</span>
-            <span className="lbl-short">Challenge</span>
+            <span className="lbl-long">Share challenge</span>
+            <span className="lbl-short">Share</span>
           </button>
           <button
             type="button"

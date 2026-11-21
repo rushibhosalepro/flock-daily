@@ -1284,6 +1284,25 @@ button:focus-visible,
   display: none;
 }
 
+/* On an old post, the way to today's puzzle is a slim pill, so Post to comments stays the one primary button. */
+.today-pill {
+  align-self: center;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 12px;
+  min-height: 30px;
+  background: #e3f4ea;
+  color: var(--accent-dark);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.crown-check {
+  font-size: 0.8em;
+}
+
 /* Very narrow frames (or big text): short labels keep each button on one line. */
 @container app (max-width: 300px) {
   .result-card .lbl-long {
