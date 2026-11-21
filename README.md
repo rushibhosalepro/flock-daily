@@ -6,7 +6,7 @@ A daily puzzle where one swipe moves three birds at once. Get every bird onto th
 
 ![Flock gameplay: a two-swipe tutorial, then the daily puzzle solved at par, ending on the result card](https://raw.githubusercontent.com/rushibhosalepro/flock-daily/main/docs/flock-demo.gif)
 
-[Watch the demo video](https://github.com/rushibhosalepro/flock-daily/raw/main/docs/flock-demo.mp4) · [Source code on GitHub](https://github.com/rushibhosalepro/flock-daily)
+[Watch it played on Reddit](https://github.com/rushibhosalepro/flock-daily/raw/main/docs/flock-reddit-demo.mp4) · [Source code on GitHub](https://github.com/rushibhosalepro/flock-daily)
 
 ## How to play
 
