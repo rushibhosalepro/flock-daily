@@ -28,6 +28,7 @@ New players get a two-swipe tutorial that takes about 10 seconds.
 ## With your community
 
 - **Post to comments:** one tap adds your result under the post's pinned results comment, posted as you, with your solution hidden as a spoiler.
+- **Top solvers today:** the day's top three by first-solve moves, with 👑 for Crown earners and your own place.
 - **Today's spread:** see how first solves split (at par, 1–2 over, 3+ over) and how many players you beat.
 - **Share challenge:** send a friend your score to beat. They see the score, never your moves.
 - **Join:** an optional button to join the community for tomorrow's puzzle.
