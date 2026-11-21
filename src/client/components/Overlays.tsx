@@ -111,6 +111,9 @@ const TopSolvers = ({
   );
 };
 
+/** First solves needed before the spread chart appears. */
+const MIN_FOR_CHART = 5;
+
 export type CommentState = 'idle' | 'posting' | 'posted' | 'failed';
 export type JoinState = 'idle' | 'joining' | 'joined' | 'hidden';
 
@@ -152,12 +155,15 @@ type ResultCardProps = {
   onToday: (() => void) | null;
 };
 
-const HEADLINE: Record<ResultInfo['rating'], string> = {
-  Perfect: 'Perfect!',
-  Excellent: 'Excellent!',
-  Good: 'Nicely done',
-  Completed: 'Solved',
-};
+/** The headline carries the move count, so the score reads in one glance. */
+const headline = (rating: ResultInfo['rating'], moves: string): string =>
+  rating === 'Perfect'
+    ? `Perfect! ${moves}`
+    : rating === 'Excellent'
+      ? `Excellent! ${moves}`
+      : rating === 'Good'
+        ? `Nicely done: ${moves}`
+        : `Solved in ${moves}`;
 
 const COMMENT_LABEL: Record<CommentState, string> = {
   idle: '💬 Post to comments',
@@ -193,7 +199,8 @@ export const ResultCard = ({
   onJoin,
   onToday,
 }: ResultCardProps) => {
-  const hasLeaders = leaders.top.length > 0;
+  // A list of one is just you, which "first to solve" already says.
+  const hasLeaders = leaders.top.length > 0 && leaders.total >= 2;
   const [view, setView] = useState<'top' | 'spread'>('top');
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
   const share = resultText({
@@ -214,18 +221,32 @@ export const ResultCard = ({
     crownPar === null
       ? null
       : roundCrown
-        ? `👑 Crown! The feather and every bird home in ${result.moves}.`
+        ? `👑 Crown! Feather and every bird home in ${result.moves}.`
         : bestIsCrown && bestCrown
           ? `👑 Crown earned in ${bestCrown.moves}.`
           : bestCrown
-            ? `🪶 Feather in ${bestCrown.moves}. Crown par is ${crownPar}.`
-            : `🪶 Bonus: grab the golden feather and finish in ${crownPar} for a Crown.`;
+            ? `🪶 You got the feather. Now do it in ${crownPar} moves or fewer for a 👑.`
+            : `🪶 Bonus: grab the feather and finish in ${crownPar} or fewer for a 👑.`;
+  // Plain words for the score, so a first-time player knows what par means and how they did.
+  const movesText = `${result.moves} ${result.moves === 1 ? 'move' : 'moves'}`;
+  const over = result.moves - result.par;
+  const parLine =
+    over <= 0
+      ? '🎯 Par! The fewest moves possible.'
+      : `${over} over par (${result.par} is the fewest possible)`;
+  // Percentages from one or two players mean nothing, so the chart waits for a few solvers.
+  const chartReady =
+    community.atPar + community.near + community.far >= MIN_FOR_CHART;
+  const showTabs = hasLeaders && chartReady;
+  const showList = hasLeaders && (view === 'top' || !chartReady);
+  const showChart = chartReady && !showList;
   // When the first solve differs, say so, so "Perfect" next to "0% hit par" never looks wrong.
   const showFirst =
     first !== null && (first.moves !== result.moves || first.moves !== best.moves);
 
+  const firstToday = stats.solved === 1 && first !== null;
   const communityLine = [
-    `${stats.solved} solved`,
+    firstToday ? 'You are the first to solve today!' : `${stats.solved} solved`,
     community.beat !== null ? `better than ${community.beat}%` : null,
     crownPar !== null && stats.crowned > 0 ? `👑 ${stats.crowned} crowned` : null,
   ]
@@ -256,11 +277,12 @@ export const ResultCard = ({
         >
           ✕
         </button>
-        <h2>{roundCrown ? 'Crowned! 👑' : HEADLINE[result.rating]}</h2>
-        <div className="big">
-          {result.moves} {result.moves === 1 ? 'move' : 'moves'} · Par{' '}
-          {result.par}
-        </div>
+        <h2>
+          {roundCrown
+            ? `Crowned! 👑 ${movesText}`
+            : headline(result.rating, movesText)}
+        </h2>
+        <p className={`par-line${over <= 0 ? ' at-par' : ''}`}>{parLine}</p>
         {best.moves < result.moves ? (
           <p className="best-line">
             Your best: {best.moves} moves · {best.rating}
@@ -283,7 +305,7 @@ export const ResultCard = ({
 
         {stats.solved > 0 ? (
           <div className="community">
-            {hasLeaders ? (
+            {showTabs ? (
               <div className="tabs" role="tablist" aria-label="Today">
                 <button
                   type="button"
@@ -305,7 +327,7 @@ export const ResultCard = ({
                 </button>
               </div>
             ) : null}
-            {hasLeaders && view === 'top' ? (
+            {showList ? (
               <div className="view-top">
                 <TopSolvers
                   leaders={leaders}
@@ -314,15 +336,15 @@ export const ResultCard = ({
                 />
               </div>
             ) : null}
-            <div
-              className={`view-spread${hasLeaders && view === 'top' ? ' off' : ''}`}
-            >
-              <MoveChart
-                community={community}
-                par={result.par}
-                mine={first?.moves ?? null}
-              />
-            </div>
+            {chartReady ? (
+              <div className={`view-spread${showChart ? '' : ' off'}`}>
+                <MoveChart
+                  community={community}
+                  par={result.par}
+                  mine={first?.moves ?? null}
+                />
+              </div>
+            ) : null}
             <p className="muted">{communityLine}</p>
             {showFirst && first ? (
               <p className="muted first-line">

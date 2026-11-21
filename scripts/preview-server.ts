@@ -44,6 +44,21 @@ const leadersFor = (puzzle: Info, mine: string | null) => {
 };
 const community = { atPar: 17, near: 15, far: 9, beat: 63 };
 
+/** With ?solvers=1 the preview player is the only solver today. */
+const soloCommunity = (first: string | null, par: number) => {
+  const moves = first?.length ?? 0;
+  return {
+    atPar: first && moves <= par ? 1 : 0,
+    near: first && moves > par && moves <= par + 2 ? 1 : 0,
+    far: first && moves > par + 2 ? 1 : 0,
+    beat: null,
+  };
+};
+const soloLeaders = (first: string | null) =>
+  first
+    ? { top: [{ name: 'preview', moves: first.length, crown: false }], myRank: 1, total: 1 }
+    : { top: [], myRank: null, total: 0 };
+
 const json = (body: unknown, status = 200) => ({
   status,
   type: 'application/json',
@@ -82,6 +97,9 @@ const info = (day: number) => {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
+  const isSolo =
+    req.headers.referer !== undefined &&
+    new URL(req.headers.referer).searchParams.get('solvers') === '1';
   try {
     if (url.pathname === '/api/tutorial-done' && req.method === 'POST') {
       tutorialDone = true;
@@ -136,12 +154,18 @@ const server = createServer(async (req, res) => {
         bestCrown: prior?.crown ? asResult(prior.crown, puzzle) : null,
         first: prior ? asResult(prior.first, puzzle) : null,
         commented: commented.has(day),
-        leaders: leadersFor(puzzle, prior?.first ?? null),
+        leaders: isSolo
+          ? soloLeaders(prior?.first ?? null)
+          : leadersFor(puzzle, prior?.first ?? null),
         subredditName: 'flocks_daily_dev',
         joined,
-        community,
+        community: isSolo
+          ? soloCommunity(prior?.first ?? null, puzzle.par)
+          : community,
         streak: { current: streak, best: streak },
-        stats: { solved: 41, atPar: 17, crowned: 5 },
+        stats: isSolo
+          ? { solved: prior ? 1 : 0, atPar: 0, crowned: 0 }
+          : { solved: 41, atPar: 17, crowned: 5 },
       });
       res.writeHead(out.status, { 'Content-Type': out.type });
       res.end(out.body);
@@ -178,10 +202,16 @@ const server = createServer(async (req, res) => {
         best: asResult(best, puzzle),
         bestCrown: crown ? asResult(crown, puzzle) : null,
         first: asResult(prior?.first ?? round, puzzle),
-        community,
-        leaders: leadersFor(puzzle, prior?.first ?? round),
+        community: isSolo
+          ? soloCommunity(prior?.first ?? round, puzzle.par)
+          : community,
+        leaders: isSolo
+          ? soloLeaders(prior?.first ?? round)
+          : leadersFor(puzzle, prior?.first ?? round),
         streak: { current: streak, best: streak },
-        stats: { solved: 42, atPar: 17, crowned: 6 },
+        stats: isSolo
+          ? { solved: 1, atPar: 0, crowned: 0 }
+          : { solved: 42, atPar: 17, crowned: 6 },
       });
       res.writeHead(out.status, { 'Content-Type': out.type });
       res.end(out.body);
