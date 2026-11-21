@@ -1,6 +1,6 @@
 import type { CSSProperties, PointerEventHandler, Ref } from 'react';
 import { BIRDS } from '../../shared/engine/step.ts';
-import type { Level, State } from '../../shared/engine/types.ts';
+import type { Dir, Level, State } from '../../shared/engine/types.ts';
 import { BIRD_LABELS } from '../constants.ts';
 import { BirdArt, NestArt, WallArt } from './Art.tsx';
 
@@ -14,6 +14,11 @@ type BoardProps = {
   /** Increases by one each time a swipe is blocked. */
   blockedTick?: number;
   won?: boolean;
+  /** Birds that stayed put on the last swipe. */
+  bumped?: readonly [boolean, boolean, boolean];
+  /** Changes on every swipe, so squash animations replay. */
+  swipes?: number;
+  lastDir?: Dir | null;
   boardRef?: Ref<HTMLDivElement>;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
@@ -30,12 +35,29 @@ const pos = (cell: number, size: number): CSSProperties => {
 
 const NO_FACING: Facing = [false, false, false];
 
+/** Each bird blinks on its own rhythm. */
+const blink = (delay: string, every: string): CSSProperties => {
+  const vars: Record<string, string> = {
+    '--blink-delay': delay,
+    '--blink-every': every,
+  };
+  return vars;
+};
+const BLINK: readonly CSSProperties[] = [
+  blink('0.4s', '4.2s'),
+  blink('1.9s', '5.1s'),
+  blink('3.1s', '4.7s'),
+];
+
 export const Board = ({
   level,
   state,
   facing = NO_FACING,
   blockedTick = 0,
   won = false,
+  bumped = NO_FACING,
+  swipes = 0,
+  lastDir = null,
   boardRef,
   onPointerDown,
   onPointerUp,
@@ -78,8 +100,8 @@ export const Board = ({
         );
       })}
       {level.walls.map((cell) => (
-        <div key={`w${cell}`} className="piece" style={pos(cell, size)}>
-          <WallArt />
+        <div key={`w${cell}`} className="piece wall" style={pos(cell, size)}>
+          <WallArt variant={cell} />
         </div>
       ))}
       {BIRDS.map((i) => {
@@ -105,8 +127,16 @@ export const Board = ({
             role="img"
             aria-label={label}
           >
-            <div className={`bird-flip${facing[i] ? ' left' : ''}`}>
-              <BirdArt index={i} contrary={level.kinds[i] === 'contrary'} />
+            <div
+              key={bumped[i] && lastDir ? `s${swipes}` : 'still'}
+              className={`bird-squash${bumped[i] && lastDir ? ` bump-${lastDir}` : ''}`}
+            >
+              <div
+                className={`bird-flip${facing[i] ? ' left' : ''}`}
+                style={BLINK[i]}
+              >
+                <BirdArt index={i} contrary={level.kinds[i] === 'contrary'} />
+              </div>
             </div>
           </div>
         );

@@ -7,6 +7,7 @@ import {
   useReducer,
   useState,
 } from 'react';
+import type { CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
 import { parseChallenge, ratingFor } from '../shared/engine/share.ts';
 import type { Dir } from '../shared/engine/types.ts';
@@ -22,6 +23,8 @@ import type {
 } from '../shared/api.ts';
 import { fetchInit, markTutorialDone, submitMoves } from './api.ts';
 import { Board } from './components/Board.tsx';
+import { ArrowIcon, RestartIcon, UndoIcon } from './components/Icons.tsx';
+import { BIRD_COLORS } from './constants.ts';
 import { ResultCard } from './components/Overlays.tsx';
 import { Tutorial } from './components/Tutorial.tsx';
 import { createGame, gameReducer } from './hooks/useGame.ts';
@@ -61,11 +64,17 @@ const ARROWS: ReadonlyArray<{
   label: string;
   cls: string;
 }> = [
-  { dir: 'U', glyph: '↑', label: 'Move up', cls: 'up' },
   { dir: 'L', glyph: '←', label: 'Move left', cls: 'left' },
+  { dir: 'U', glyph: '↑', label: 'Move up', cls: 'up' },
   { dir: 'D', glyph: '↓', label: 'Move down', cls: 'down' },
   { dir: 'R', glyph: '→', label: 'Move right', cls: 'right' },
 ];
+
+/** Gives a pip its bird color through a CSS variable. */
+const pipStyle = (color: string): CSSProperties => {
+  const vars: Record<string, string> = { '--pip': color };
+  return vars;
+};
 
 const REPLAY_STEP_MS = 420;
 const REPLAY_END_MS = 900;
@@ -237,6 +246,10 @@ const Game = ({ init }: { init: InitResponse }) => {
   };
   const hasBanner =
     replay !== null || todayUrl !== null || showChallenge || puzzle.twist;
+  const homeFlags = [0, 1, 2].map(
+    (i) => frame.current[i] === puzzle.level.nests[i]
+  );
+  const homeCount = homeFlags.filter(Boolean).length;
   const status =
     state.status === 'won'
       ? `Solved in ${moves} moves. Par is ${puzzle.par}.`
@@ -288,20 +301,46 @@ const Game = ({ init }: { init: InitResponse }) => {
           </div>
         ) : null}
 
-        <div className="scoreline">
-          <div className={`score${over ? ' over' : ''}`}>
-            <div className="label">Moves</div>
-            <div className="value">{moves}</div>
-          </div>
-          <div className="score">
-            <div className="label">Par</div>
-            <div className="value">{puzzle.par}</div>
-          </div>
+        <div className="hud">
           <div
-            className={`score best${best && best.moves <= puzzle.par ? ' at-par' : ''}`}
+            className="home-count"
+            aria-label={`${homeCount} of 3 birds home`}
           >
-            <div className="label">Best</div>
-            <div className="value">{best ? best.moves : '–'}</div>
+            <span className="pips" aria-hidden="true">
+              {BIRD_COLORS.map((color, i) => (
+                <span
+                  key={color}
+                  className={`pip${homeFlags[i] ? ' on' : ''}`}
+                  style={pipStyle(color)}
+                />
+              ))}
+            </span>
+            {moves === 0 && homeCount === 0 ? (
+              <span className="home-text goal-long">
+                Get each bird to its nest
+              </span>
+            ) : null}
+            <span
+              className={`home-text${moves === 0 && homeCount === 0 ? ' goal-short' : ''}`}
+            >
+              {homeCount}/3<span className="home-word"> home</span>
+            </span>
+          </div>
+          <div className="hud-stats">
+            <span className={`stat${over ? ' over' : ''}`}>
+              <span className="k">Moves</span>
+              <b className="v">{moves}</b>
+            </span>
+            <span className="stat">
+              <span className="k">Par</span>
+              <b className="v">{puzzle.par}</b>
+            </span>
+            <span
+              className={`stat best${best && best.moves <= puzzle.par ? ' at-par' : ''}`}
+            >
+              <span className="k">Best</span>
+              <b className="v">{best ? best.moves : '–'}</b>
+            </span>
           </div>
         </div>
 
@@ -312,43 +351,62 @@ const Game = ({ init }: { init: InitResponse }) => {
             facing={frame.facing}
             blockedTick={replay ? 0 : state.blocked}
             won={frame.status === 'won'}
+            bumped={frame.bumped}
+            swipes={frame.swipes}
+            lastDir={frame.lastDir}
             {...swipe}
           />
         </div>
 
         <div className="controls">
+          {state.status === 'won' && card ? (
+            <button
+              type="button"
+              className="ctl wide"
+              onClick={() => setCardOpen(true)}
+              disabled={replay !== null}
+            >
+              Result
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="ctl"
+              aria-label="Undo"
+              title="Undo"
+              onClick={onUndo}
+              disabled={state.history.length === 0 || locked}
+            >
+              <UndoIcon />
+            </button>
+          )}
           <div className="dpad" role="group" aria-label="Directions">
             {ARROWS.map((arrow) => (
               <button
                 key={arrow.dir}
                 type="button"
-                className={arrow.cls}
+                className={`ctl arrow ${arrow.cls}`}
                 aria-label={arrow.label}
-                disabled={locked && state.status === 'won'}
+                disabled={locked}
                 onClick={() => onMove(arrow.dir)}
               >
-                {arrow.glyph}
+                <ArrowIcon dir={arrow.dir} />
               </button>
             ))}
           </div>
-          <div className="side-actions">
-            <button
-              type="button"
-              className="btn"
-              onClick={onUndo}
-              disabled={state.history.length === 0 || state.status === 'won'}
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => dispatch({ type: 'restart' })}
-              disabled={moves === 0}
-            >
-              Restart
-            </button>
-          </div>
+          <button
+            type="button"
+            className="ctl"
+            aria-label={state.status === 'won' ? 'Play again' : 'Restart'}
+            title={state.status === 'won' ? 'Play again' : 'Restart'}
+            onClick={() => {
+              setCardOpen(false);
+              dispatch({ type: 'restart' });
+            }}
+            disabled={moves === 0 || replay !== null}
+          >
+            <RestartIcon />
+          </button>
         </div>
       </div>
 

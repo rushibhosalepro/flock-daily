@@ -10,6 +10,12 @@ export type GameState = {
   facing: readonly [boolean, boolean, boolean];
   /** Counts blocked swipes, used to replay the shake animation. */
   blocked: number;
+  /** Birds that stayed put on the last swipe, so they can squash against what stopped them. */
+  bumped: readonly [boolean, boolean, boolean];
+  /** Increases on every swipe, so the squash animation replays. */
+  swipes: number;
+  /** Direction of the last swipe, for the squash direction. */
+  lastDir: Dir | null;
   status: 'playing' | 'won';
 };
 
@@ -23,8 +29,20 @@ export const createGame = (level: Level): GameState => ({
   moves: [],
   facing: [false, false, false],
   blocked: 0,
+  bumped: [false, false, false],
+  swipes: 0,
+  lastDir: null,
   status: 'playing',
 });
+
+const stayed = (
+  before: State,
+  after: State
+): readonly [boolean, boolean, boolean] => [
+  before[0] === after[0],
+  before[1] === after[1],
+  before[2] === after[2],
+];
 
 const faceAfter = (
   level: Level,
@@ -51,10 +69,19 @@ export const gameReducer = (
       if (state.status !== 'playing') return state;
       const result = step(state.level, state.current, action.dir);
       if (!result.changed) {
-        return { ...state, blocked: state.blocked + 1 };
+        return {
+          ...state,
+          blocked: state.blocked + 1,
+          bumped: [true, true, true],
+          swipes: state.swipes + 1,
+          lastDir: action.dir,
+        };
       }
       return {
         ...state,
+        bumped: stayed(state.current, result.state),
+        swipes: state.swipes + 1,
+        lastDir: action.dir,
         current: result.state,
         history: [...state.history, state.current],
         moves: [...state.moves, action.dir],
@@ -77,6 +104,8 @@ export const gameReducer = (
         history: state.history.slice(0, -1),
         moves: state.moves.slice(0, -1),
         facing: faceAfter(state.level, state.current, previous, state.facing),
+        bumped: [false, false, false],
+        lastDir: null,
       };
     }
     case 'restart':

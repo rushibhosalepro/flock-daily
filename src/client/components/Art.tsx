@@ -85,8 +85,17 @@ export const BirdArt = ({
         strokeWidth="3"
         strokeLinejoin="round"
       />
-      <circle cx="64" cy="42" r="8" fill="#fff" stroke={INK} strokeWidth="3" />
-      <circle cx="66" cy="42" r="3.6" fill={INK} />
+      <g className="bird-eye">
+        <circle
+          cx="64"
+          cy="42"
+          r="8"
+          fill="#fff"
+          stroke={INK}
+          strokeWidth="3"
+        />
+        <circle cx="66" cy="42" r="3.6" fill={INK} />
+      </g>
       <path
         d="M78 46 L96 53 L78 60 Z"
         fill="#ff9f1c"
@@ -148,33 +157,65 @@ export const NestArt = ({ index }: { index: BirdIndex }) => {
   );
 };
 
-export const WallArt = () => (
-  <svg viewBox="0 0 100 100" aria-hidden="true">
-    <rect
-      x="6"
-      y="6"
-      width="88"
-      height="88"
-      rx="14"
-      fill="#8d90a6"
-      stroke={INK}
-      strokeWidth="4"
-    />
-    <path
-      d="M6 38 H94 M6 66 H94 M40 6 V38 M66 38 V66 M30 66 V94"
-      stroke={INK}
-      strokeOpacity="0.35"
-      strokeWidth="3"
-      fill="none"
-    />
-    <rect
-      x="12"
-      y="12"
-      width="30"
-      height="8"
-      rx="4"
-      fill="#fff"
-      fillOpacity="0.3"
-    />
-  </svg>
-);
+/** Leaf balls that make up a hedge: [cx, cy, r]. */
+const HEDGE: ReadonlyArray<readonly [number, number, number]> = [
+  [30, 62, 24],
+  [70, 62, 24],
+  [50, 40, 26],
+  [26, 40, 17],
+  [74, 40, 17],
+  [50, 70, 22],
+];
+
+/**
+ * A hedge bush. Each leaf ball is drawn twice: first with a thick outline,
+ * then filled on top, so only the outer edge of the cluster keeps its outline.
+ */
+export const WallArt = ({ variant = 0 }: { variant?: number }) => {
+  const flip = variant % 2 === 1;
+  return (
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <ellipse cx="50" cy="90" rx="38" ry="7" fill="rgba(43,45,66,0.2)" />
+      <g transform={flip ? 'translate(100 0) scale(-1 1)' : undefined}>
+        {HEDGE.map(([cx, cy, r]) => (
+          <circle key={`o${cx}-${cy}`} cx={cx} cy={cy} r={r + 2} fill={INK} />
+        ))}
+        {HEDGE.map(([cx, cy, r]) => (
+          <circle key={`f${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="#4f9d4a" />
+        ))}
+        <circle cx="50" cy="40" r="16" fill="#62b35b" />
+        <circle cx="30" cy="60" r="13" fill="#62b35b" />
+        <circle cx="70" cy="60" r="12" fill="#5aa954" />
+        {/* Small leaves, placed unevenly so they never read as a face. */}
+        <path
+          d="M33 33 l5 -4 M58 26 l4 3 M20 56 l4 -4 M67 47 l5 2 M41 74 l4 -3 M76 66 l3 -4"
+          stroke="#2f6b2c"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <ellipse cx="42" cy="28" rx="9" ry="4" fill="#fff" fillOpacity="0.35" />
+        {variant % 3 === 0 ? (
+          <>
+            <circle
+              cx="66"
+              cy="34"
+              r="4.5"
+              fill="#e5484d"
+              stroke={INK}
+              strokeWidth="2"
+            />
+            <circle
+              cx="73"
+              cy="41"
+              r="4"
+              fill="#e5484d"
+              stroke={INK}
+              strokeWidth="2"
+            />
+          </>
+        ) : null}
+      </g>
+    </svg>
+  );
+};

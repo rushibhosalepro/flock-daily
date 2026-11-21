@@ -1,17 +1,31 @@
 @import 'tailwindcss';
 
+/* Nunito (SIL Open Font License, see assets/NUNITO-LICENSE.txt), bundled because posts cannot load outside fonts. */
+@font-face {
+  font-family: 'Nunito';
+  src: url('./assets/nunito-latin.woff2') format('woff2');
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --ink: #2b2d42;
   --paper: #fffaf0;
-  --sky-top: #cfe8ff;
-  --sky-bottom: #f7f1e1;
-  --tile-a: #fff6e0;
-  --tile-b: #f6ead0;
+  --card: #fffdf7;
+  --sky-top: #bfe3ff;
+  --sky-bottom: #f4f0dc;
+  --grass-a: #d3eaa3;
+  --grass-b: #c4e192;
+  --wood: #8a5a33;
+  --wood-dark: #5e3b1f;
   --red: #e5484d;
   --blue: #3b82f6;
   --yellow: #f5b301;
   --accent: #2f9e6e;
+  --accent-dark: #1f7550;
   --muted: #6b6f85;
+  --press: #d9c79f;
   --move-ms: 140ms;
 }
 
@@ -23,15 +37,12 @@ body,
 }
 
 body {
-  font-family:
-    ui-rounded,
-    'Nunito',
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: 'Nunito', ui-rounded, 'Segoe UI', system-ui, sans-serif;
   color: var(--ink);
-  background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+  background:
+    radial-gradient(120% 60% at 15% 108%, #b5d98a 0 48%, transparent 49%),
+    radial-gradient(120% 55% at 90% 112%, #a3cf78 0 48%, transparent 49%),
+    linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
   overscroll-behavior: none;
   overflow: hidden;
   -webkit-tap-highlight-color: transparent;
@@ -70,24 +81,26 @@ button:focus-visible,
   align-items: center;
   grid-template-columns: 100%;
   grid-template-rows: auto auto auto 1fr auto;
-  grid-template-areas: 'top' 'twist' 'score' 'board' 'controls';
-  --reserve: 252px;
+  grid-template-areas: 'top' 'twist' 'hud' 'board' 'controls';
+  /* Height taken by everything except the board. */
+  --reserve: 196px;
 }
 
 .stage.has-twist {
-  --reserve: 294px;
+  --reserve: 240px;
 }
 
 .topbar {
   grid-area: top;
 }
 
-.twist-banner {
+.twist-banner,
+.replay-bar {
   grid-area: twist;
 }
 
-.scoreline {
-  grid-area: score;
+.hud {
+  grid-area: hud;
 }
 
 .board-wrap {
@@ -98,44 +111,80 @@ button:focus-visible,
   grid-area: controls;
 }
 
+/* Wide, short frames (desktop feed): board on the left, a slim panel on the right. */
 @container app (min-aspect-ratio: 23 / 20) {
   .stage {
     max-width: 900px;
-    column-gap: 16px;
-    row-gap: 8px;
-    grid-template-columns: auto 220px;
+    column-gap: 18px;
+    row-gap: 10px;
+    grid-template-columns: auto 232px;
     grid-template-rows: 1fr auto auto auto auto 1fr;
     grid-template-areas:
       'board .'
       'board top'
       'board twist'
-      'board score'
+      'board hud'
       'board controls'
       'board .';
     justify-content: center;
   }
 
   .stage .board {
-    width: max(180px, min(100cqh - 24px, 100cqw - 272px, 560px));
+    width: max(180px, min(100cqh - 24px, 100cqw - 286px, 560px));
   }
 
   .stage .title {
     font-size: 18px;
   }
 
-  .stage .controls {
+  .stage .hud {
     flex-direction: column;
-    gap: 8px;
+    align-items: stretch;
+    gap: 6px;
   }
 
-  .stage .side-actions {
-    flex-direction: row;
+  .stage .hud-stats {
+    justify-content: space-between;
   }
 
-  .stage .side-actions .btn {
-    padding: 8px 12px;
+  /* Controls become a small d-pad with undo and restart either side. */
+  .stage .controls {
+    display: grid;
+    grid-template-columns: 44px 1fr 44px;
+    align-items: end;
+  }
+
+  .stage .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 42px);
+    grid-template-rows: repeat(2, 40px);
+    justify-content: center;
+  }
+
+  .stage .dpad .up {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .stage .dpad .left {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .stage .dpad .down {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .stage .dpad .right {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .stage .ctl.wide {
+    grid-column: 1 / span 3;
+    order: 9;
   }
 }
+
+/* ---------- header ---------- */
 
 .topbar {
   width: 100%;
@@ -146,8 +195,8 @@ button:focus-visible,
 }
 
 .title {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 21px;
+  font-weight: 900;
   letter-spacing: 0.2px;
   display: flex;
   align-items: center;
@@ -155,25 +204,27 @@ button:focus-visible,
 }
 
 .pill {
-  font-size: 14px;
-  font-weight: 700;
-  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: var(--paper);
-  border: 2px solid var(--ink);
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--press);
 }
 
 .pill.twist {
   background: var(--yellow);
+  box-shadow: 0 2px 0 #b97c00;
 }
 
 .icon-btn {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
-  border: 2px solid var(--ink);
-  background: var(--paper);
-  font-weight: 800;
+  border: none;
+  background: var(--card);
+  box-shadow: 0 3px 0 var(--press);
+  font-weight: 900;
   font-size: 18px;
   cursor: pointer;
 }
@@ -182,50 +233,100 @@ button:focus-visible,
   width: 100%;
   box-sizing: border-box;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background: #fff1c2;
-  border: 2px solid var(--ink);
-}
-
-.scoreline {
-  display: flex;
-  gap: 10px;
-  width: 100%;
-  justify-content: center;
-}
-
-.score {
-  flex: 1;
-  max-width: 150px;
-  text-align: center;
-  background: var(--paper);
-  border: 2px solid var(--ink);
+  padding: 7px 10px;
   border-radius: 14px;
-  padding: 4px 8px;
+  background: #fff1c2;
+  box-shadow: 0 2px 0 #e0c46a;
 }
 
-.score .label {
+/* ---------- status bar ---------- */
+
+.hud {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 16px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: 0 3px 0 var(--press);
+}
+
+.home-count {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pips {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 3px solid var(--pip);
+  background: transparent;
+  transition:
+    background 160ms,
+    transform 160ms;
+}
+
+.pip.on {
+  background: var(--pip);
+  transform: scale(1.12);
+}
+
+.home-text {
   font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-stats {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f3ecd9;
+}
+
+.stat .k {
+  font-size: 12px;
+  font-weight: 800;
   color: var(--muted);
-  font-weight: 700;
-  line-height: 1.1;
 }
 
-.score .value {
-  font-size: 26px;
+.stat .v {
+  font-size: 18px;
   font-weight: 900;
-  line-height: 1.1;
+  min-width: 1ch;
+  text-align: center;
 }
 
-.score.over .value {
+.stat.over .v {
   color: #c2410c;
 }
 
-.score.best.at-par {
-  background: #e3f4ea;
+.stat.best.at-par {
+  background: #d6f0df;
 }
 
 .card p.best-line {
@@ -235,7 +336,6 @@ button:focus-visible,
 /* ---------- board ---------- */
 
 .board-wrap {
-  flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   display: flex;
@@ -247,28 +347,44 @@ button:focus-visible,
   position: relative;
   width: max(180px, min(100cqw - 24px, 100cqh - var(--reserve), 520px));
   aspect-ratio: 1 / 1;
-  border: 4px solid var(--ink);
-  border-radius: 18px;
-  background: var(--tile-a);
+  border: 6px solid var(--wood);
+  border-radius: 20px;
+  background: var(--grass-a);
   overflow: hidden;
   touch-action: none;
   user-select: none;
-  box-shadow: 0 6px 0 rgba(43, 45, 66, 0.25);
+  box-shadow:
+    0 0 0 2px var(--wood-dark),
+    0 6px 0 2px var(--wood-dark),
+    inset 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .cell {
   position: absolute;
+  z-index: 0;
   width: 20%;
   height: 20%;
   transform: translate(calc(var(--c) * 100%), calc(var(--r) * 100%));
 }
 
 .cell.tile-a {
-  background: var(--tile-a);
+  background: var(--grass-a);
 }
 
 .cell.tile-b {
-  background: var(--tile-b);
+  background: var(--grass-b);
+}
+
+/* A few grass tufts so the tiles read as a meadow, not a chessboard. */
+.cell.tile-b::after {
+  content: '';
+  position: absolute;
+  left: 22%;
+  bottom: 18%;
+  width: 18%;
+  height: 12%;
+  border-radius: 50% 50% 0 0;
+  background: rgba(79, 157, 74, 0.28);
 }
 
 .piece {
@@ -289,14 +405,34 @@ button:focus-visible,
   display: block;
 }
 
+.piece.wall {
+  transition: none;
+}
+
+.piece.bird {
+  z-index: 2;
+}
+
+.bird-squash {
+  width: 100%;
+  height: 100%;
+}
+
 .bird-flip {
   width: 100%;
   height: 100%;
-  transition: transform 120ms ease-out;
+  transition:
+    transform 120ms ease-out,
+    scale 160ms ease-out;
 }
 
 .bird-flip.left {
   transform: scaleX(-1);
+}
+
+/* A bird on its nest shrinks a little, so the nest ring shows around it. */
+.piece.home .bird-flip {
+  scale: 0.84;
 }
 
 .piece.home .bird-flip svg {
@@ -312,16 +448,64 @@ button:focus-visible,
   transition: opacity 160ms;
 }
 
-.piece.bird {
-  z-index: 2;
-}
-
-.cell {
-  z-index: 0;
-}
-
 .board.won .piece.bird svg {
   animation: hop 520ms ease-out;
+}
+
+/* Eyes blink now and then. */
+.bird-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: blink var(--blink-every, 4.5s) var(--blink-delay, 0s) infinite;
+}
+
+@keyframes blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* A bird that was stopped squashes against whatever stopped it. */
+.bump-R {
+  transform-origin: 100% 60%;
+  animation: squash-x 220ms ease-out;
+}
+.bump-L {
+  transform-origin: 0% 60%;
+  animation: squash-x 220ms ease-out;
+}
+.bump-U {
+  transform-origin: 50% 0%;
+  animation: squash-y 220ms ease-out;
+}
+.bump-D {
+  transform-origin: 50% 100%;
+  animation: squash-y 220ms ease-out;
+}
+
+@keyframes squash-x {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(0.8, 1.12);
+  }
+}
+
+@keyframes squash-y {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  35% {
+    transform: scale(1.12, 0.8);
+  }
 }
 
 @keyframes shake-a {
@@ -368,68 +552,74 @@ button:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 8px;
   width: 100%;
 }
 
 .dpad {
-  display: grid;
-  grid-template-columns: repeat(3, 52px);
-  grid-template-rows: repeat(2, 48px);
+  display: flex;
   gap: 6px;
 }
 
-.dpad button {
-  border: 2px solid var(--ink);
-  background: var(--paper);
+.ctl {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: none;
   border-radius: 14px;
-  font-size: 22px;
-  font-weight: 900;
+  background: var(--card);
+  box-shadow: 0 3px 0 var(--press);
   cursor: pointer;
-  box-shadow: 0 3px 0 rgba(43, 45, 66, 0.3);
 }
 
-.dpad button:active {
+.ctl.arrow {
+  background: #ffffff;
+  color: var(--accent-dark);
+}
+
+.ctl.wide {
+  width: auto;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 900;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--accent-dark);
+}
+
+.ctl:active:not(:disabled) {
   transform: translateY(2px);
-  box-shadow: 0 1px 0 rgba(43, 45, 66, 0.3);
+  box-shadow: 0 1px 0 var(--press);
 }
 
-.dpad .up {
-  grid-column: 2;
-  grid-row: 1;
+.ctl:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-.dpad .left {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.dpad .down {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.dpad .right {
-  grid-column: 3;
-  grid-row: 2;
-}
-
-.side-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.icon {
+  width: 22px;
+  height: 22px;
 }
 
 .btn {
-  border: 2px solid var(--ink);
-  background: var(--paper);
+  border: none;
+  background: var(--card);
   border-radius: 14px;
   padding: 10px 16px;
   min-height: 44px;
   font-weight: 800;
   font-size: 16px;
   cursor: pointer;
-  box-shadow: 0 3px 0 rgba(43, 45, 66, 0.3);
+  box-shadow:
+    0 0 0 2px #e7dcc0 inset,
+    0 3px 0 var(--press);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(2px);
 }
 
 .btn:disabled {
@@ -440,6 +630,7 @@ button:focus-visible,
 .btn.primary {
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 3px 0 var(--accent-dark);
 }
 
 /* ---------- overlays ---------- */
@@ -451,7 +642,7 @@ button:focus-visible,
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(43, 45, 66, 0.55);
+  background: rgba(43, 45, 66, 0.5);
   z-index: 10;
 }
 
@@ -460,14 +651,14 @@ button:focus-visible,
   max-height: 100%;
   overflow: auto;
   box-sizing: border-box;
-  background: var(--paper);
-  border: 3px solid var(--ink);
-  border-radius: 22px;
+  background: var(--card);
+  border-radius: 24px;
   padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   text-align: center;
+  box-shadow: 0 6px 0 var(--press);
   animation: pop 220ms ease-out;
 }
 
@@ -504,7 +695,7 @@ button:focus-visible,
 
 .card p.next-puzzle {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 4px 12px;
   border-radius: 999px;
   background: #e3f4ea;
@@ -522,10 +713,10 @@ button:focus-visible,
 
 .challenge-banner {
   background: #e8e4ff;
+  box-shadow: 0 2px 0 #c3bbf0;
 }
 
 .replay-bar {
-  grid-area: twist;
   width: 100%;
   box-sizing: border-box;
   display: flex;
@@ -535,13 +726,14 @@ button:focus-visible,
   font-size: 14px;
   font-weight: 800;
   padding: 4px 6px 4px 12px;
-  border-radius: 12px;
-  border: 2px solid var(--ink);
-  background: var(--paper);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 2px 0 var(--press);
 }
 
 .today-bar {
   background: #e3f4ea;
+  box-shadow: 0 2px 0 #b5dcc4;
 }
 
 .replay-bar .btn {
@@ -574,7 +766,7 @@ button:focus-visible,
   border: none;
   background: none;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--muted);
   text-decoration: underline;
   cursor: pointer;
@@ -583,7 +775,7 @@ button:focus-visible,
 }
 
 .tutorial-line {
-  font-weight: 800;
+  font-weight: 900;
   min-height: 2.7em;
   display: flex;
   align-items: center;
@@ -602,18 +794,21 @@ button:focus-visible,
 .arrow-btn {
   width: 48px;
   height: 44px;
-  border: 2px solid var(--ink);
-  background: var(--paper);
+  border: none;
+  background: #ffffff;
   border-radius: 12px;
   font-size: 20px;
   font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 3px 0 rgba(43, 45, 66, 0.3);
+  box-shadow:
+    0 0 0 2px #e7dcc0 inset,
+    0 3px 0 var(--press);
 }
 
 .arrow-btn.nudge {
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 3px 0 var(--accent-dark);
 }
 
 @keyframes pop {
@@ -631,7 +826,7 @@ button:focus-visible,
   height: 100%;
   display: grid;
   place-items: center;
-  font-weight: 800;
+  font-weight: 900;
   font-size: 18px;
 }
 
@@ -651,7 +846,7 @@ button:focus-visible,
   .card {
     padding: 12px 14px;
     gap: 8px;
-    border-radius: 18px;
+    border-radius: 20px;
   }
   .card h2 {
     font-size: 22px;
@@ -672,12 +867,47 @@ button:focus-visible,
   }
 }
 
+/* The long goal line shows only where it fits: wide frames, or phones roomy enough. */
+.home-text.goal-short {
+  display: none;
+}
+
+@container app (max-width: 470px) and (max-aspect-ratio: 23 / 20) {
+  .home-text.goal-long {
+    display: none;
+  }
+  .home-text.goal-short {
+    display: inline;
+  }
+}
+
+/* Narrow phones: shrink the status bar text before anything overlaps. */
+@container app (max-width: 360px) {
+  .stat .k {
+    font-size: 11px;
+  }
+  .stat {
+    padding: 2px 6px;
+  }
+  .hud-stats {
+    gap: 4px;
+  }
+  .home-word {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .piece,
   .bird-flip {
     transition: none;
   }
   .card,
+  .bird-eye,
+  .bump-R,
+  .bump-L,
+  .bump-U,
+  .bump-D,
   .piece.home .bird-flip svg,
   .board.won .piece.bird svg {
     animation: none;
