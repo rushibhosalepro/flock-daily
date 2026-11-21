@@ -6,6 +6,7 @@ import type { Dir } from '../../shared/engine/types.ts';
 import type {
   Community,
   DayStats,
+  Leaders,
   PuzzleInfo,
   ResultInfo,
   StreakInfo,
@@ -100,6 +101,57 @@ export const saveBestCrown = async (
     await redis.hIncrBy(dayKey('s', puzzle.day), 'crowned', 1);
   }
   return round;
+};
+
+/**
+ * Sort key for the top solvers: fewer first-solve moves first, then whoever
+ * solved earlier. Seconds stay below 1e9 for decades, so they never reach the moves part.
+ */
+const leaderScore = (moves: number, now: number): number =>
+  moves * 1e9 + (Math.floor(now / 1000) % 1e9);
+
+/** Adds a player's first solve to the day's top solvers. */
+export const addLeader = async (
+  day: number,
+  username: string,
+  moves: number
+): Promise<void> => {
+  await redis.zAdd(dayKey('l', day), {
+    member: username,
+    score: leaderScore(moves, Date.now()),
+  });
+};
+
+/** Marks that a player earned the Crown today, for the badge on the top solvers list. */
+export const markCrowned = async (
+  day: number,
+  username: string
+): Promise<void> => {
+  await redis.hSet(dayKey('w', day), { [username]: '1' });
+};
+
+const TOP = 3;
+
+export const getLeaders = async (
+  day: number,
+  username: string | undefined
+): Promise<Leaders> => {
+  const key = dayKey('l', day);
+  const [top, total, rank, crowned] = await Promise.all([
+    redis.zRange(key, 0, TOP - 1, { by: 'rank' }),
+    redis.zCard(key),
+    username ? redis.zRank(key, username) : Promise.resolve(undefined),
+    redis.hGetAll(dayKey('w', day)),
+  ]);
+  return {
+    top: top.map((entry) => ({
+      name: entry.member,
+      moves: Math.floor(entry.score / 1e9),
+      crown: crowned[entry.member] === '1',
+    })),
+    myRank: rank === undefined ? null : rank + 1,
+    total,
+  };
 };
 
 /** Stores the first solve for a user. Returns true only for the first one. */

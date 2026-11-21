@@ -28,6 +28,20 @@ let streak = 0;
 let tutorialDone = false;
 const commented = new Set<number>();
 let joined = false;
+
+/** A fixed top three, with the preview player slotted in by their first solve. */
+const leadersFor = (puzzle: Info, mine: string | null) => {
+  const others = [
+    { name: 'meadowlark', moves: puzzle.par, crown: true },
+    { name: 'quiet_heron', moves: puzzle.par, crown: false },
+    { name: 'sparrowhawk_92', moves: puzzle.par + 2, crown: false },
+  ];
+  if (mine === null) return { top: others, myRank: null, total: 41 };
+  const me = { name: 'preview', moves: mine.length, crown: false };
+  const all = [...others, me].sort((a, b) => a.moves - b.moves);
+  const rank = mine.length <= puzzle.par ? 3 : 12;
+  return { top: all.slice(0, 3), myRank: rank, total: 42 };
+};
 const community = { atPar: 17, near: 15, far: 9, beat: 63 };
 
 const json = (body: unknown, status = 200) => ({
@@ -122,6 +136,7 @@ const server = createServer(async (req, res) => {
         bestCrown: prior?.crown ? asResult(prior.crown, puzzle) : null,
         first: prior ? asResult(prior.first, puzzle) : null,
         commented: commented.has(day),
+        leaders: leadersFor(puzzle, prior?.first ?? null),
         subredditName: 'flocks_daily_dev',
         joined,
         community,
@@ -164,6 +179,7 @@ const server = createServer(async (req, res) => {
         bestCrown: crown ? asResult(crown, puzzle) : null,
         first: asResult(prior?.first ?? round, puzzle),
         community,
+        leaders: leadersFor(puzzle, prior?.first ?? round),
         streak: { current: streak, best: streak },
         stats: { solved: 42, atPar: 17, crowned: 6 },
       });

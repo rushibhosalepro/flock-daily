@@ -3,7 +3,7 @@ import { context, reddit } from '@devvit/web/server';
 import { replay } from '../../shared/engine/step.ts';
 import { getPostUrl, getScoresThread } from '../core/post.ts';
 import { getPuzzle, getToday } from '../core/puzzle.ts';
-import { commentText } from '../../shared/engine/share.ts';
+import { commentText, isCrown } from '../../shared/engine/share.ts';
 import {
   bumpStreak,
   claimComment,
@@ -15,7 +15,10 @@ import {
   getBestCrown,
   getBestResult,
   getStreak,
+  addLeader,
   getJoined,
+  getLeaders,
+  markCrowned,
   getTutorialDone,
   isDir,
   setJoined,
@@ -93,7 +96,10 @@ api.get('/init', async (c) => {
       isToday ? Promise.resolve(null) : getPostUrl(today),
       getJoined(userId, context.subredditName),
     ]);
-    const community = await getCommunity(puzzle, first?.moves ?? null);
+    const [community, leaders] = await Promise.all([
+      getCommunity(puzzle, first?.moves ?? null),
+      getLeaders(day, username ?? undefined),
+    ]);
     return c.json<InitResponse>({
       type: 'init',
       puzzle,
@@ -106,6 +112,7 @@ api.get('/init', async (c) => {
       bestCrown,
       first,
       commented,
+      leaders,
       subredditName: context.subredditName,
       joined,
       community,
@@ -245,6 +252,7 @@ api.post('/submit', async (c) => {
     }
 
     const userId = context.userId;
+    const username = userId ? await reddit.getCurrentUsername() : undefined;
     let recorded = false;
     let streak = await getStreak(userId);
     const result = toResult(puzzle, moves);
@@ -258,6 +266,16 @@ api.post('/submit', async (c) => {
       }
       best = await saveBestResult(puzzle, userId, moves);
       bestCrown = await saveBestCrown(puzzle, userId, moves);
+      if (username) {
+        if (recorded) await addLeader(day, username, moves.length);
+        if (
+          bestCrown &&
+          puzzle.crownPar !== null &&
+          isCrown(bestCrown.moves, puzzle.crownPar)
+        ) {
+          await markCrowned(day, username);
+        }
+      }
     }
     const first =
       (userId ? await getStoredResult(puzzle, userId) : null) ?? result;
@@ -272,6 +290,7 @@ api.post('/submit', async (c) => {
       bestCrown,
       first,
       community,
+      leaders: await getLeaders(day, username),
       recorded,
       streak,
       stats: await getStats(day),

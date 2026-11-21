@@ -40,6 +40,19 @@ export type Community = {
   beat: number | null;
 };
 
+/** One row of today's top solvers, ranked by first-solve moves, then by who solved first. */
+export type Leader = {
+  name: string;
+  moves: number;
+  /** True when this player earned today's Crown on any solve. */
+  crown: boolean;
+};
+export type Leaders = {
+  top: Leader[];
+  /** This player's place among first solves, or null if they have not solved. */
+  myRank: number | null;
+  total: number;
+};
 export type StreakInfo = {
   current: number;
   best: number;
@@ -65,6 +78,7 @@ export type InitResponse = {
   first: ResultInfo | null;
   /** True once this player has posted their result as a comment on this post. */
   commented: boolean;
+  leaders: Leaders;
   subredditName: string;
   /** True once this player joined the subreddit from the game. */
   joined: boolean;
@@ -88,6 +102,7 @@ export type SubmitResponse = {
   /** The player's first solve, which is what the daily stats count. */
   first: ResultInfo;
   community: Community;
+  leaders: Leaders;
   /** True when this round was the player's first solve, which is what daily stats count. */
   recorded: boolean;
   streak: StreakInfo;

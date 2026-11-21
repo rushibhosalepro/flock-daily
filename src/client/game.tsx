@@ -18,6 +18,7 @@ import { readShareData } from './share.ts';
 import { navigateTo, showToast } from '@devvit/web/client';
 import type {
   Community,
+  Leaders,
   DayStats,
   InitResponse,
   ResultInfo,
@@ -64,6 +65,7 @@ type CardData = {
   bestCrown: ResultInfo | null;
   first: ResultInfo | null;
   community: Community;
+  leaders: Leaders;
   streak: StreakInfo;
   stats: DayStats;
   saveError: boolean;
@@ -132,6 +134,7 @@ const Game = ({ init }: { init: InitResponse }) => {
           bestCrown: init.bestCrown,
           first: init.first,
           community: init.community,
+          leaders: init.leaders,
           streak: init.streak,
           stats: init.stats,
           saveError: false,
@@ -243,6 +246,7 @@ const Game = ({ init }: { init: InitResponse }) => {
           bestCrown: outcome.bestCrown,
           first: outcome.first,
           community: outcome.community,
+          leaders: outcome.leaders,
           streak: outcome.streak,
           stats: outcome.stats,
           saveError: false,
@@ -274,6 +278,7 @@ const Game = ({ init }: { init: InitResponse }) => {
           bestCrown: nextCrown,
           first: init.first,
           community: init.community,
+          leaders: init.leaders,
           streak: init.streak,
           stats: init.stats,
           saveError: true,
@@ -296,6 +301,7 @@ const Game = ({ init }: { init: InitResponse }) => {
     init.stats,
     init.first,
     init.community,
+    init.leaders,
   ]);
 
   const closeHelp = () => {
@@ -544,6 +550,7 @@ const Game = ({ init }: { init: InitResponse }) => {
           stats={card.stats}
           first={card.first}
           community={card.community}
+          leaders={card.leaders}
           loggedIn={init.username !== null}
           isToday={init.isToday}
           today={init.today}

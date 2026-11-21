@@ -12,10 +12,11 @@ const EPOCH_KEY = 'flock:epoch';
 /** Day-keyed data is namespaced by puzzle version, so new content never meets old results. */
 /**
  * p puzzle cache, r first solves, s counters, b best solves, k best crown solves,
- * h first-solve move counts, c players who commented their result.
+ * h first-solve move counts, c players who commented their result,
+ * l top solvers (sorted set by first-solve moves), w players who earned the Crown.
  */
 export const dayKey = (
-  kind: 'p' | 'r' | 's' | 'b' | 'k' | 'h' | 'c',
+  kind: 'p' | 'r' | 's' | 'b' | 'k' | 'h' | 'c' | 'l' | 'w',
   day: number
 ): string => `flock:v${PUZZLE_VERSION}:${kind}:${day}`;
 const memory = new Map<number, PuzzleInfo>();

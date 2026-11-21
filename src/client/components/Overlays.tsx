@@ -11,6 +11,7 @@ import type { Challenge } from '../../shared/engine/share.ts';
 import type {
   Community,
   DayStats,
+  Leaders,
   ResultInfo,
   StreakInfo,
 } from '../../shared/api.ts';
@@ -73,6 +74,43 @@ const MoveChart = ({
   );
 };
 
+/** Today's top three first solves, with the player's own place under them when they are lower. */
+const TopSolvers = ({
+  leaders,
+  username,
+  par,
+}: {
+  leaders: Leaders;
+  username: string | null;
+  par: number;
+}) => {
+  const mineShown = leaders.top.some((row) => row.name === username);
+  return (
+    <ol className="leaders" aria-label="Top solvers today">
+      {leaders.top.map((row, i) => (
+        <li
+          key={row.name}
+          className={`leader${row.name === username ? ' mine' : ''}`}
+        >
+          <span className="leader-rank">{i + 1}</span>
+          <span className="leader-name">u/{row.name}</span>
+          <span className={`leader-moves${row.moves <= par ? ' at-par' : ''}`}>
+            {row.moves}
+          </span>
+          <span className="leader-crown">
+            {row.crown ? <span aria-label="Crown">👑</span> : null}
+          </span>
+        </li>
+      ))}
+      {!mineShown && leaders.myRank !== null ? (
+        <li className="leader mine you">
+          You are #{leaders.myRank} of {leaders.total}
+        </li>
+      ) : null}
+    </ol>
+  );
+};
+
 export type CommentState = 'idle' | 'posting' | 'posted' | 'failed';
 export type JoinState = 'idle' | 'joining' | 'joined' | 'hidden';
 
@@ -89,6 +127,7 @@ type ResultCardProps = {
   /** The player's first solve, which is what the daily stats count. */
   first: ResultInfo | null;
   community: Community;
+  leaders: Leaders;
   streak: StreakInfo;
   stats: DayStats;
   loggedIn: boolean;
@@ -135,6 +174,7 @@ export const ResultCard = ({
   crownPar,
   first,
   community,
+  leaders,
   streak,
   stats,
   loggedIn,
@@ -153,6 +193,8 @@ export const ResultCard = ({
   onJoin,
   onToday,
 }: ResultCardProps) => {
+  const hasLeaders = leaders.top.length > 0;
+  const [view, setView] = useState<'top' | 'spread'>('top');
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
   const share = resultText({
     day,
@@ -184,7 +226,7 @@ export const ResultCard = ({
 
   const communityLine = [
     `${stats.solved} solved`,
-    community.beat !== null ? `fewer moves than ${community.beat}%` : null,
+    community.beat !== null ? `better than ${community.beat}%` : null,
     crownPar !== null && stats.crowned > 0 ? `👑 ${stats.crowned} crowned` : null,
   ]
     .filter(Boolean)
@@ -241,11 +283,46 @@ export const ResultCard = ({
 
         {stats.solved > 0 ? (
           <div className="community">
-            <MoveChart
-              community={community}
-              par={result.par}
-              mine={first?.moves ?? null}
-            />
+            {hasLeaders ? (
+              <div className="tabs" role="tablist" aria-label="Today">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === 'top'}
+                  className={`tab${view === 'top' ? ' on' : ''}`}
+                  onClick={() => setView('top')}
+                >
+                  🏆 Top solvers
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={view === 'spread'}
+                  className={`tab${view === 'spread' ? ' on' : ''}`}
+                  onClick={() => setView('spread')}
+                >
+                  📊 Spread
+                </button>
+              </div>
+            ) : null}
+            {hasLeaders && view === 'top' ? (
+              <div className="view-top">
+                <TopSolvers
+                  leaders={leaders}
+                  username={username}
+                  par={result.par}
+                />
+              </div>
+            ) : null}
+            <div
+              className={`view-spread${hasLeaders && view === 'top' ? ' off' : ''}`}
+            >
+              <MoveChart
+                community={community}
+                par={result.par}
+                mine={first?.moves ?? null}
+              />
+            </div>
             <p className="muted">{communityLine}</p>
             {showFirst && first ? (
               <p className="muted first-line">
