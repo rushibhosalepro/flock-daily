@@ -3,6 +3,7 @@ import type {
   CommentResponse,
   ErrorResponse,
   InitResponse,
+  JoinResponse,
   SubmitRequest,
   SubmitResponse,
 } from '../shared/api.ts';
@@ -32,6 +33,16 @@ export const fetchInit = async (): Promise<InitResponse> => {
 
 const isComment = (value: unknown): value is CommentResponse =>
   hasField(value, 'type', 'comment');
+const isJoin = (value: unknown): value is JoinResponse =>
+  hasField(value, 'type', 'join');
+
+/** Subscribes the player to this subreddit. Called only from the Join button. */
+export const joinSubreddit = async (): Promise<JoinResponse> => {
+  const response = await fetch('/api/join', { method: 'POST' });
+  const body: unknown = await response.json();
+  if (isJoin(body)) return body;
+  throw new Error(isError(body) ? body.message : 'Could not join');
+};
 
 /** Asks the server to post the player's result as a comment, as the player. */
 export const postComment = async (): Promise<CommentResponse> => {

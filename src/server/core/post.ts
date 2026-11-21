@@ -29,11 +29,52 @@ export const createDailyPost = async (
     });
     const url = fullUrl(post.permalink);
     await redis.set(urlKey(target), url);
+    // The scores comment is also made on first use, so a failure here is not fatal.
+    await getScoresThread(post.id, target).catch((error: unknown) =>
+      console.error('could not make the scores comment', error)
+    );
     return { id: post.id, day: target, url };
   } catch (error) {
     // Free the guard so a later run can retry.
     await redis.del(`flock:posted:${target}`);
     throw error;
+  }
+};
+
+const threadKey = (postId: string): string => `flock:scores:${postId}`;
+const isCommentId = (id: string | undefined): id is `t1_${string}` =>
+  id !== undefined && id.startsWith('t1_');
+const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
+
+/**
+ * The app's stickied comment that players' results are posted under, as
+ * Reddit asks of score comments. It is made once per post, the first time it
+ * is needed, and remembered in Redis.
+ */
+export const getScoresThread = async (
+  postId: `t3_${string}`,
+  day: number
+): Promise<`t1_${string}`> => {
+  const stored = await redis.get(threadKey(postId));
+  if (isCommentId(stored)) return stored;
+  // Only one request makes the comment; any other waits for it.
+  const lock = `${threadKey(postId)}:lock`;
+  if ((await redis.incrBy(lock, 1)) !== 1) {
+    await pause(1500);
+    const made = await redis.get(threadKey(postId));
+    if (isCommentId(made)) return made;
+    throw new Error('the scores comment is still being made');
+  }
+  try {
+    const comment = await reddit.submitComment({
+      id: postId,
+      text: `**Flock #${day} results.** Tap "Post to comments" in the game to add yours here. Solutions are hidden as spoilers.`,
+    });
+    await comment.distinguish(true);
+    await redis.set(threadKey(postId), comment.id);
+    return comment.id;
+  } finally {
+    await redis.del(lock);
   }
 };
 

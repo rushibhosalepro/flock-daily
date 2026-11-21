@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { context, reddit } from '@devvit/web/server';
 import { replay } from '../../shared/engine/step.ts';
-import { getPostUrl } from '../core/post.ts';
+import { getPostUrl, getScoresThread } from '../core/post.ts';
 import { getPuzzle, getToday } from '../core/puzzle.ts';
 import { commentText } from '../../shared/engine/share.ts';
 import {
@@ -15,8 +15,10 @@ import {
   getBestCrown,
   getBestResult,
   getStreak,
+  getJoined,
   getTutorialDone,
   isDir,
+  setJoined,
   setTutorialDone,
   recordResult,
   saveBestCrown,
@@ -28,6 +30,7 @@ import type {
   CommentResponse,
   ErrorResponse,
   InitResponse,
+  JoinResponse,
   SubmitResponse,
   TutorialDoneResponse,
 } from '../../shared/api.ts';
@@ -77,6 +80,7 @@ api.get('/init', async (c) => {
       stats,
       tutorialDone,
       todayUrl,
+      joined,
     ] = await Promise.all([
       reddit.getCurrentUsername(),
       userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
@@ -87,6 +91,7 @@ api.get('/init', async (c) => {
       getStats(day),
       getTutorialDone(userId),
       isToday ? Promise.resolve(null) : getPostUrl(today),
+      getJoined(userId, context.subredditName),
     ]);
     const community = await getCommunity(puzzle, first?.moves ?? null);
     return c.json<InitResponse>({
@@ -101,6 +106,8 @@ api.get('/init', async (c) => {
       bestCrown,
       first,
       commented,
+      subredditName: context.subredditName,
+      joined,
       community,
       streak,
       stats,
@@ -136,6 +143,28 @@ api.post('/tutorial-done', async (c) => {
  * The text is built here from the player's verified best solve, never from the
  * client, and each player can post at most once per puzzle.
  */
+/** Subscribes the player to this subreddit, only from their tap on Join. */
+api.post('/join', async (c) => {
+  const userId = context.userId;
+  if (!userId) {
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Log in to Reddit to join' },
+      401
+    );
+  }
+  try {
+    await reddit.subscribeToCurrentSubreddit();
+    await setJoined(userId, context.subredditName);
+    return c.json<JoinResponse>({ type: 'join', joined: true });
+  } catch (error) {
+    console.error('join failed', error);
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Could not join the community' },
+      500
+    );
+  }
+});
+
 api.post('/comment', async (c) => {
   const userId = context.userId;
   const postId = context.postId;
@@ -174,7 +203,8 @@ api.post('/comment', async (c) => {
     });
     if (!isPostId(postId)) throw new Error(`unexpected post id ${postId}`);
     try {
-      await reddit.submitComment({ id: postId, text, runAs: 'USER' });
+      const thread = await getScoresThread(postId, day);
+      await reddit.submitComment({ id: thread, text, runAs: 'USER' });
     } catch (error) {
       // Let the player try again if Reddit refused the comment.
       await releaseComment(day, userId);

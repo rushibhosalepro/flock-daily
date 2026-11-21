@@ -202,6 +202,25 @@ export const setTutorialDone = async (userId: string): Promise<void> => {
   await redis.hSet(`flock:u:${userId}`, { tut: '1' });
 };
 
+/**
+ * Reddit has no API to check a subscription, so the game remembers that the
+ * player joined from here. Field `sub` holds the subreddit name.
+ */
+export const getJoined = async (
+  userId: string | undefined,
+  subredditName: string
+): Promise<boolean> => {
+  if (!userId) return false;
+  return (await redis.hGet(`flock:u:${userId}`, 'sub')) === subredditName;
+};
+
+export const setJoined = async (
+  userId: string,
+  subredditName: string
+): Promise<void> => {
+  await redis.hSet(`flock:u:${userId}`, { sub: subredditName });
+};
+
 export const getStreak = async (
   userId: string | undefined
 ): Promise<StreakInfo> => {

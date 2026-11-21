@@ -26,6 +26,7 @@ import type {
 import {
   fetchInit,
   markTutorialDone,
+  joinSubreddit,
   postComment,
   submitMoves,
 } from './api.ts';
@@ -33,7 +34,7 @@ import { Board } from './components/Board.tsx';
 import { ArrowIcon, RestartIcon, UndoIcon } from './components/Icons.tsx';
 import { BIRD_COLORS } from './constants.ts';
 import { ResultCard } from './components/Overlays.tsx';
-import type { CommentState } from './components/Overlays.tsx';
+import type { CommentState, JoinState } from './components/Overlays.tsx';
 import { Tutorial } from './components/Tutorial.tsx';
 import { createGame, gameReducer } from './hooks/useGame.ts';
 import { useKeys, useSwipe } from './hooks/useInput.ts';
@@ -155,6 +156,19 @@ const Game = ({ init }: { init: InitResponse }) => {
     } catch {
       setComment('failed');
       showToast('Could not post the comment. You can copy it instead.');
+    }
+  };
+  // Players who joined before never see the button again; a fresh join shows a check.
+  const [join, setJoin] = useState<JoinState>(init.joined ? 'hidden' : 'idle');
+  const sendJoin = async () => {
+    setJoin('joining');
+    try {
+      await joinSubreddit();
+      setJoin('joined');
+      showToast(`Joined r/${init.subredditName}`);
+    } catch {
+      setJoin('idle');
+      showToast('Could not join right now');
     }
   };
   const [replay, setReplay] = useState<{
@@ -537,6 +551,8 @@ const Game = ({ init }: { init: InitResponse }) => {
           username={init.username}
           challenge={challenge}
           comment={comment}
+          join={join}
+          subredditName={init.subredditName}
           celebration={
             <Celebrate
               burst={burst}
@@ -551,6 +567,7 @@ const Game = ({ init }: { init: InitResponse }) => {
           onClose={() => setCardOpen(false)}
           onWatch={startReplay}
           onComment={() => void sendComment()}
+          onJoin={() => void sendJoin()}
           onToday={todayUrl ? goToday : null}
         />
       ) : null}

@@ -74,6 +74,7 @@ const MoveChart = ({
 };
 
 export type CommentState = 'idle' | 'posting' | 'posted' | 'failed';
+export type JoinState = 'idle' | 'joining' | 'joined' | 'hidden';
 
 type ResultCardProps = {
   day: number;
@@ -99,11 +100,15 @@ type ResultCardProps = {
   /** A friend's score from the share link this post was opened with. */
   challenge: Challenge | null;
   comment: CommentState;
+  join: JoinState;
+  subredditName: string;
   /** Feathers drawn behind the card, so they never cover its text. */
   celebration: ReactNode;
   onClose: () => void;
   onWatch: () => void;
   onComment: () => void;
+  /** Subscribes to the subreddit. Its own button, never combined with another action. */
+  onJoin: () => void;
   /** Opens today's post. Null on today's post, or when its link is unknown. */
   onToday: (() => void) | null;
 };
@@ -139,10 +144,13 @@ export const ResultCard = ({
   username,
   challenge,
   comment,
+  join,
+  subredditName,
   celebration,
   onClose,
   onWatch,
   onComment,
+  onJoin,
   onToday,
 }: ResultCardProps) => {
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
@@ -328,6 +336,23 @@ export const ResultCard = ({
             <span className="lbl-short">Replay</span>
           </button>
         </div>
+        {loggedIn && join !== 'hidden' ? (
+          <button
+            type="button"
+            className="join-pill"
+            onClick={onJoin}
+            disabled={join !== 'idle'}
+          >
+            {join === 'joined' ? (
+              `✓ Joined r/${subredditName}`
+            ) : (
+              <>
+                🔔 Join r/{subredditName}
+                <span className="lbl-long"> for tomorrow&apos;s puzzle</span>
+              </>
+            )}
+          </button>
+        ) : null}
       </div>
     </div>
   );

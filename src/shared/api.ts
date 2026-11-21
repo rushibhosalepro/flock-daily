@@ -65,6 +65,9 @@ export type InitResponse = {
   first: ResultInfo | null;
   /** True once this player has posted their result as a comment on this post. */
   commented: boolean;
+  subredditName: string;
+  /** True once this player joined the subreddit from the game. */
+  joined: boolean;
   community: Community;
   streak: StreakInfo;
   stats: DayStats;
@@ -97,6 +100,10 @@ export type CommentResponse = {
   outcome: 'posted' | 'already';
 };
 
+export type JoinResponse = {
+  type: 'join';
+  joined: boolean;
+};
 export type TutorialDoneResponse = {
   type: 'tutorial-done';
   saved: boolean;

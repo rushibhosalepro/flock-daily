@@ -27,6 +27,7 @@ const saved = new Map<number, Saved>();
 let streak = 0;
 let tutorialDone = false;
 const commented = new Set<number>();
+let joined = false;
 const community = { atPar: 17, near: 15, far: 9, beat: 63 };
 
 const json = (body: unknown, status = 200) => ({
@@ -82,9 +83,16 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ type: 'comment', outcome }));
       return;
     }
+    if (url.pathname === '/api/join' && req.method === 'POST') {
+      joined = true;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ type: 'join', joined: true }));
+      return;
+    }
     if (url.pathname === '/__reset') {
       saved.clear();
       commented.clear();
+      joined = false;
       streak = 0;
       tutorialDone = false;
       res.writeHead(200).end('reset');
@@ -114,6 +122,8 @@ const server = createServer(async (req, res) => {
         bestCrown: prior?.crown ? asResult(prior.crown, puzzle) : null,
         first: prior ? asResult(prior.first, puzzle) : null,
         commented: commented.has(day),
+        subredditName: 'flocks_daily_dev',
+        joined,
         community,
         streak: { current: streak, best: streak },
         stats: { solved: 41, atPar: 17, crowned: 5 },
