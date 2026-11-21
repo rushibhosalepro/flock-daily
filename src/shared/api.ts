@@ -82,6 +82,8 @@ export type InitResponse = {
   subredditName: string;
   /** True once this player joined the subreddit from the game. */
   joined: boolean;
+  /** False when this player turned the game sounds off. */
+  soundOn: boolean;
   community: Community;
   streak: StreakInfo;
   stats: DayStats;
@@ -115,6 +117,10 @@ export type CommentResponse = {
   outcome: 'posted' | 'already';
 };
 
+export type SoundResponse = {
+  type: 'sound';
+  saved: boolean;
+};
 export type JoinResponse = {
   type: 'join';
   joined: boolean;

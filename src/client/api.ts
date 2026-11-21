@@ -52,6 +52,19 @@ export const postComment = async (): Promise<CommentResponse> => {
   throw new Error(isError(body) ? body.message : 'Could not post the comment');
 };
 
+/** Saves the sound choice. Failure is harmless: it only resets on the next visit. */
+export const saveSound = async (on: boolean): Promise<void> => {
+  try {
+    await fetch('/api/sound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ on }),
+    });
+  } catch {
+    // Ignore network errors.
+  }
+};
+
 /** Tells the server the tutorial is done. Failure is harmless: the tutorial just shows again later. */
 export const markTutorialDone = async (): Promise<void> => {
   try {

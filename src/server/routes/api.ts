@@ -17,11 +17,13 @@ import {
   getStreak,
   addLeader,
   getJoined,
+  getSoundOn,
   getLeaders,
   markCrowned,
   getTutorialDone,
   isDir,
   setJoined,
+  setSoundOn,
   setTutorialDone,
   recordResult,
   saveBestCrown,
@@ -34,6 +36,7 @@ import type {
   ErrorResponse,
   InitResponse,
   JoinResponse,
+  SoundResponse,
   SubmitResponse,
   TutorialDoneResponse,
 } from '../../shared/api.ts';
@@ -84,6 +87,7 @@ api.get('/init', async (c) => {
       tutorialDone,
       todayUrl,
       joined,
+      soundOn,
     ] = await Promise.all([
       reddit.getCurrentUsername(),
       userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
@@ -95,6 +99,7 @@ api.get('/init', async (c) => {
       getTutorialDone(userId),
       isToday ? Promise.resolve(null) : getPostUrl(today),
       getJoined(userId, context.subredditName),
+      getSoundOn(userId),
     ]);
     const [community, leaders] = await Promise.all([
       getCommunity(puzzle, first?.moves ?? null),
@@ -115,6 +120,7 @@ api.get('/init', async (c) => {
       leaders,
       subredditName: context.subredditName,
       joined,
+      soundOn,
       community,
       streak,
       stats,
@@ -151,6 +157,26 @@ api.post('/tutorial-done', async (c) => {
  * client, and each player can post at most once per puzzle.
  */
 /** Subscribes the player to this subreddit, only from their tap on Join. */
+/** Saves the sound on/off choice. Logged-out players keep it for this visit only. */
+api.post('/sound', async (c) => {
+  try {
+    const body: unknown = await c.req.json();
+    const on =
+      typeof body === 'object' && body !== null && 'on' in body
+        ? body.on === true
+        : true;
+    const userId = context.userId;
+    if (userId) await setSoundOn(userId, on);
+    return c.json<SoundResponse>({ type: 'sound', saved: Boolean(userId) });
+  } catch (error) {
+    console.error('sound failed', error);
+    return c.json<ErrorResponse>(
+      { status: 'error', message: 'Could not save the sound setting' },
+      500
+    );
+  }
+});
+
 api.post('/join', async (c) => {
   const userId = context.userId;
   if (!userId) {

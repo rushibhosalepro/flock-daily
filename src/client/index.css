@@ -255,7 +255,15 @@ button:focus-visible,
   box-shadow: 0 2px 0 #b97c00;
 }
 
+.top-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .icon-btn {
+  display: grid;
+  place-items: center;
+  color: inherit;
   width: 38px;
   height: 38px;
   border-radius: 999px;

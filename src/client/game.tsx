@@ -29,10 +29,19 @@ import {
   markTutorialDone,
   joinSubreddit,
   postComment,
+  saveSound,
   submitMoves,
 } from './api.ts';
 import { Board } from './components/Board.tsx';
-import { ArrowIcon, RestartIcon, UndoIcon } from './components/Icons.tsx';
+import {
+  ArrowIcon,
+  RestartIcon,
+  SoundOffIcon,
+  SoundOnIcon,
+  UndoIcon,
+} from './components/Icons.tsx';
+import { playLand, setMuted } from './sound.ts';
+import { useBoardSounds } from './hooks/useBoardSounds.ts';
 import { BIRD_COLORS } from './constants.ts';
 import { ResultCard } from './components/Overlays.tsx';
 import type { CommentState, JoinState } from './components/Overlays.tsx';
@@ -113,6 +122,18 @@ const pause = (ms: number): Promise<void> =>
 const Game = ({ init }: { init: InitResponse }) => {
   const { puzzle } = init;
   const [state, dispatch] = useReducer(gameReducer, puzzle.level, createGame);
+
+  const [soundOn, setSoundOn] = useState(init.soundOn);
+  useEffect(() => setMuted(!soundOn), [soundOn]);
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setMuted(!next);
+    if (next) playLand(3);
+    void saveSound(next);
+  };
+
+  useBoardSounds(state, puzzle.par, puzzle.crownPar);
   // The tutorial opens once per player. Redis remembers it for logged-in players;
   // localStorage covers logged-out visitors.
   const [helpOpen, setHelpOpen] = useState(
@@ -351,14 +372,26 @@ const Game = ({ init }: { init: InitResponse }) => {
               {init.isToday ? puzzle.label : 'Practice'}
             </span>
           </div>
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="How to play"
-            onClick={() => setHelpOpen(true)}
-          >
-            ?
-          </button>
+          <div className="top-actions">
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
+              aria-pressed={!soundOn}
+              title={soundOn ? 'Sound on' : 'Sound off'}
+              onClick={toggleSound}
+            >
+              {soundOn ? <SoundOnIcon /> : <SoundOffIcon />}
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="How to play"
+              onClick={() => setHelpOpen(true)}
+            >
+              ?
+            </button>
+          </div>
         </header>
 
         {replay ? (

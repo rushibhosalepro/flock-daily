@@ -28,6 +28,7 @@ let streak = 0;
 let tutorialDone = false;
 const commented = new Set<number>();
 let joined = false;
+let soundOn = true;
 
 /** A fixed top three, with the preview player slotted in by their first solve. */
 const leadersFor = (puzzle: Info, mine: string | null) => {
@@ -115,6 +116,14 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ type: 'comment', outcome }));
       return;
     }
+    if (url.pathname === '/api/sound' && req.method === 'POST') {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      soundOn = JSON.parse(raw).on === true;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ type: 'sound', saved: true }));
+      return;
+    }
     if (url.pathname === '/api/join' && req.method === 'POST') {
       joined = true;
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -125,6 +134,7 @@ const server = createServer(async (req, res) => {
       saved.clear();
       commented.clear();
       joined = false;
+      soundOn = true;
       streak = 0;
       tutorialDone = false;
       res.writeHead(200).end('reset');
@@ -159,6 +169,7 @@ const server = createServer(async (req, res) => {
           : leadersFor(puzzle, prior?.first ?? null),
         subredditName: 'flocks_daily_dev',
         joined,
+        soundOn,
         community: isSolo
           ? soloCommunity(prior?.first ?? null, puzzle.par)
           : community,

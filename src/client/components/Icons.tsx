@@ -16,6 +16,34 @@ export const ArrowIcon = ({ dir }: { dir: Dir }) => (
   </svg>
 );
 
+const SPEAKER = 'M4 9.5 H7.5 L12 5.5 V18.5 L7.5 14.5 H4 Z';
+
+export const SoundOnIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="icon">
+    <path d={SPEAKER} fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path
+      d="M15.5 9 a4 4 0 0 1 0 6 M18 6.5 a7.5 7.5 0 0 1 0 11"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
+export const SoundOffIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="icon">
+    <path d={SPEAKER} fill="currentColor" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    <path
+      d="M15.5 9.5 L20.5 14.5 M20.5 9.5 L15.5 14.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    />
+  </svg>
+);
+
 export const UndoIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" className="icon">
     <path

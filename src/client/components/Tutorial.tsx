@@ -3,6 +3,7 @@ import { TUTORIAL, TUTORIAL_HINT } from '../../shared/engine/tutorial.ts';
 import type { Dir } from '../../shared/engine/types.ts';
 import { createGame, gameReducer } from '../hooks/useGame.ts';
 import { useKeys, useSwipe } from '../hooks/useInput.ts';
+import { useBoardSounds } from '../hooks/useBoardSounds.ts';
 import { Board } from './Board.tsx';
 
 type TutorialProps = {
@@ -26,6 +27,8 @@ const ARROWS: ReadonlyArray<{ dir: Dir; glyph: string; label: string }> = [
  */
 export const Tutorial = ({ twist, crown, onClose }: TutorialProps) => {
   const [state, dispatch] = useReducer(gameReducer, TUTORIAL, createGame);
+  // Every tutorial finish gets the full tune.
+  useBoardSounds(state, Number.POSITIVE_INFINITY, null);
   const done = state.status === 'won';
 
   const onMove = useCallback((dir: Dir) => dispatch({ type: 'move', dir }), []);

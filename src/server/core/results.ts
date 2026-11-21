@@ -254,6 +254,18 @@ export const setTutorialDone = async (userId: string): Promise<void> => {
   await redis.hSet(`flock:u:${userId}`, { tut: '1' });
 };
 
+/** Sound is on unless the player turned it off. Field `snd` is '0' when muted. */
+export const getSoundOn = async (
+  userId: string | undefined
+): Promise<boolean> => {
+  if (!userId) return true;
+  return (await redis.hGet(`flock:u:${userId}`, 'snd')) !== '0';
+};
+
+export const setSoundOn = async (userId: string, on: boolean): Promise<void> => {
+  await redis.hSet(`flock:u:${userId}`, { snd: on ? '1' : '0' });
+};
+
 /**
  * Reddit has no API to check a subscription, so the game remembers that the
  * player joined from here. Field `sub` holds the subreddit name.
