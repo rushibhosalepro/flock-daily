@@ -157,6 +157,42 @@ export const NestArt = ({ index }: { index: BirdIndex }) => {
   );
 };
 
+/** The golden feather. Landing a bird on it earns the day's Crown. */
+export const FeatherArt = () => (
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <ellipse cx="50" cy="88" rx="18" ry="5" fill="rgba(43,45,66,0.18)" />
+    <g transform="rotate(-28 50 50)">
+      <path
+        d="M50 10 C70 26 72 56 54 80 L50 86 L46 80 C28 56 30 26 50 10 Z"
+        fill="#ffd54a"
+        stroke={INK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M50 18 V88"
+        stroke="#b97c00"
+        strokeWidth="3.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M50 34 L62 28 M50 46 L64 40 M50 58 L62 54 M50 34 L38 28 M50 46 L36 40 M50 58 L38 54"
+        stroke="#d99a00"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+      />
+      <path
+        d="M44 22 C40 30 39 40 40 48"
+        stroke="#fff"
+        strokeOpacity="0.7"
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </g>
+  </svg>
+);
+
 /** Leaf balls that make up a hedge: [cx, cy, r]. */
 const HEDGE: ReadonlyArray<readonly [number, number, number]> = [
   [30, 62, 24],

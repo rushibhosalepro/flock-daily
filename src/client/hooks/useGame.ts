@@ -1,4 +1,4 @@
-import { isSolved, step } from '../../shared/engine/step.ts';
+import { isSolved, onFeather, step } from '../../shared/engine/step.ts';
 import type { Dir, Level, State } from '../../shared/engine/types.ts';
 
 export type GameState = {
@@ -16,6 +16,10 @@ export type GameState = {
   swipes: number;
   /** Direction of the last swipe, for the squash direction. */
   lastDir: Dir | null;
+  /** True once a bird has landed on the golden feather this run. */
+  feather: boolean;
+  /** Feather state before each move, so undo can give the feather back. */
+  featherHistory: boolean[];
   status: 'playing' | 'won';
 };
 
@@ -32,6 +36,8 @@ export const createGame = (level: Level): GameState => ({
   bumped: [false, false, false],
   swipes: 0,
   lastDir: null,
+  feather: onFeather(level, level.starts),
+  featherHistory: [],
   status: 'playing',
 });
 
@@ -82,6 +88,8 @@ export const gameReducer = (
         bumped: stayed(state.current, result.state),
         swipes: state.swipes + 1,
         lastDir: action.dir,
+        feather: state.feather || onFeather(state.level, result.state),
+        featherHistory: [...state.featherHistory, state.feather],
         current: result.state,
         history: [...state.history, state.current],
         moves: [...state.moves, action.dir],
@@ -106,6 +114,8 @@ export const gameReducer = (
         facing: faceAfter(state.level, state.current, previous, state.facing),
         bumped: [false, false, false],
         lastDir: null,
+        feather: state.featherHistory[state.featherHistory.length - 1] ?? false,
+        featherHistory: state.featherHistory.slice(0, -1),
       };
     }
     case 'restart':

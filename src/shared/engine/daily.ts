@@ -1,5 +1,7 @@
-import { generateLevel } from './generator.ts';
+import { generateLevel, makeRng } from './generator.ts';
 import type { GenerateOptions, GeneratedLevel } from './generator.ts';
+import { crownTable, solveCrown } from './solver.ts';
+import type { CrownResult, Level } from './types.ts';
 
 export const BOARD_SIZE = 5;
 
@@ -15,6 +17,9 @@ type Plan = {
   maxExtra: number;
   maxOptimalSolutions: number;
   twist: boolean;
+  /** Extra moves the Crown should cost over par, so the feather is a real trade-off. */
+  crownMin: number;
+  crownMax: number;
 };
 
 /**
@@ -30,6 +35,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 2,
     maxOptimalSolutions: 6,
     twist: false,
+    crownMin: 1,
+    crownMax: 2,
   },
   {
     label: 'Easy',
@@ -39,6 +46,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 3,
     maxOptimalSolutions: 6,
     twist: false,
+    crownMin: 1,
+    crownMax: 2,
   },
   {
     label: 'Medium',
@@ -48,6 +57,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 4,
     maxOptimalSolutions: 4,
     twist: false,
+    crownMin: 1,
+    crownMax: 3,
   },
   {
     label: 'Medium',
@@ -57,6 +68,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 5,
     maxOptimalSolutions: 3,
     twist: false,
+    crownMin: 1,
+    crownMax: 3,
   },
   {
     label: 'Twist',
@@ -66,6 +79,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 5,
     maxOptimalSolutions: 4,
     twist: true,
+    crownMin: 1,
+    crownMax: 3,
   },
   {
     label: 'Hard',
@@ -75,6 +90,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 99,
     maxOptimalSolutions: 2,
     twist: false,
+    crownMin: 2,
+    crownMax: 4,
   },
   {
     label: 'Twist+',
@@ -84,6 +101,8 @@ const WEEK: readonly Plan[] = [
     maxExtra: 99,
     maxOptimalSolutions: 2,
     twist: true,
+    crownMin: 2,
+    crownMax: 4,
   },
 ];
 
@@ -91,9 +110,43 @@ export type DailyPuzzle = GeneratedLevel & {
   day: number;
   label: string;
   twist: boolean;
+  /** The Crown target, or null on a day where no good feather cell exists. */
+  crown: CrownResult | null;
 };
 
 const SALT = 0x51ed27;
+const FEATHER_SALT = 0xfea7;
+
+/**
+ * Puts the golden feather on an empty cell where the Crown costs crownMin to
+ * crownMax moves more than par, picked by a seeded draw so every player sees the
+ * same cell. Returns the level unchanged when no cell fits.
+ */
+export const placeFeather = (
+  level: Level,
+  par: number,
+  seed: number,
+  crownMin: number,
+  crownMax: number
+): { level: Level; crown: CrownResult | null } => {
+  const table = crownTable(level);
+  if (!table) return { level, crown: null };
+  const blocked = new Set([...level.walls, ...level.starts, ...level.nests]);
+  const candidates: number[] = [];
+  for (let cell = 0; cell < table.length; cell++) {
+    if (blocked.has(cell)) continue;
+    const length = table[cell] ?? -1;
+    if (length === -1) continue;
+    const extra = length - par;
+    if (extra >= crownMin && extra <= crownMax) candidates.push(cell);
+  }
+  if (candidates.length === 0) return { level, crown: null };
+  const rng = makeRng(seed ^ FEATHER_SALT);
+  const feather = candidates[Math.floor(rng() * candidates.length)];
+  if (feather === undefined) return { level, crown: null };
+  const withFeather: Level = { ...level, feather };
+  return { level: withFeather, crown: solveCrown(withFeather) };
+};
 
 /** Puzzle 1 is the first Easy day of the ramp. */
 export const planForDay = (day: number): Plan => {
@@ -124,8 +177,18 @@ export const puzzleForDay = (day: number): DailyPuzzle => {
     const seed = Math.imul(day, 2654435761) ^ (SALT + round);
     const found = generateLevel(seed >>> 0, options);
     if (found) {
+      // The board itself is chosen first, so adding the feather never changes par.
+      const placed = placeFeather(
+        found.level,
+        found.solution.par,
+        seed >>> 0,
+        plan.crownMin,
+        plan.crownMax
+      );
       return {
         ...found,
+        level: placed.level,
+        crown: placed.crown,
         day,
         label: plan.label,
         twist: plan.twist,

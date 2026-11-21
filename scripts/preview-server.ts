@@ -10,6 +10,7 @@ import { extname, join, normalize } from 'node:path';
 import { puzzleForDay } from '../src/shared/engine/daily.ts';
 import { ratingFor } from '../src/shared/engine/share.ts';
 import { replay } from '../src/shared/engine/step.ts';
+import type { Dir } from '../src/shared/engine/types.ts';
 
 const PORT = Number(process.argv[2] ?? 4173);
 const ROOT = join(process.cwd(), 'dist', 'client');
@@ -21,7 +22,7 @@ const TYPES: Record<string, string> = {
   '.png': 'image/png',
 };
 
-type Saved = { first: string; best: string };
+type Saved = { first: string; best: string; crown: string | null };
 const saved = new Map<number, Saved>();
 let streak = 0;
 let tutorialDone = false;
@@ -32,12 +33,18 @@ const json = (body: unknown, status = 200) => ({
   body: JSON.stringify(body),
 });
 
-const asResult = (moves: string, par: number) => ({
+type Info = ReturnType<typeof info>;
+
+const asResult = (moves: string, puzzle: Info) => ({
   moves: moves.length,
-  par,
-  rating: ratingFor(moves.length, par),
+  par: puzzle.par,
+  rating: ratingFor(moves.length, puzzle.par),
   moveList: [...moves],
+  feather: replay(puzzle.level, [...moves].filter(isDir))?.feather ?? false,
 });
+
+const isDir = (c: string): c is Dir =>
+  c === 'U' || c === 'D' || c === 'L' || c === 'R';
 
 const dayOf = (url: URL): number => {
   const n = Number(url.searchParams.get('day') ?? 3);
@@ -52,6 +59,7 @@ const info = (day: number) => {
     twist: p.twist,
     level: p.level,
     par: p.solution.par,
+    crownPar: p.crown?.crownPar ?? null,
   };
 };
 
@@ -91,9 +99,10 @@ const server = createServer(async (req, res) => {
             : `http://localhost:${PORT}/game.html?day=${today}`,
         username: 'preview',
         tutorialDone,
-        best: prior ? asResult(prior.best, puzzle.par) : null,
+        best: prior ? asResult(prior.best, puzzle) : null,
+        bestCrown: prior?.crown ? asResult(prior.crown, puzzle) : null,
         streak: { current: streak, best: streak },
-        stats: { solved: 41, atPar: 17 },
+        stats: { solved: 41, atPar: 17, crowned: 5 },
       });
       res.writeHead(out.status, { 'Content-Type': out.type });
       res.end(out.body);
@@ -118,14 +127,19 @@ const server = createServer(async (req, res) => {
       if (first) streak += 1;
       const best =
         prior && prior.best.length <= round.length ? prior.best : round;
-      saved.set(day, { first: prior?.first ?? round, best });
+      let crown = prior?.crown ?? null;
+      if (outcome.feather && puzzle.crownPar !== null) {
+        if (crown === null || round.length < crown.length) crown = round;
+      }
+      saved.set(day, { first: prior?.first ?? round, best, crown });
       const out = json({
         type: 'submit',
         recorded: first,
-        result: asResult(round, puzzle.par),
-        best: asResult(best, puzzle.par),
+        result: asResult(round, puzzle),
+        best: asResult(best, puzzle),
+        bestCrown: crown ? asResult(crown, puzzle) : null,
         streak: { current: streak, best: streak },
-        stats: { solved: 42, atPar: 17 },
+        stats: { solved: 42, atPar: 17, crowned: 6 },
       });
       res.writeHead(out.status, { 'Content-Type': out.type });
       res.end(out.body);

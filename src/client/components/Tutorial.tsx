@@ -8,6 +8,8 @@ import { Board } from './Board.tsx';
 type TutorialProps = {
   /** Today's puzzle has the twist bird, so mention it on the last step. */
   twist: boolean;
+  /** Today's puzzle has a golden feather. */
+  crown: boolean;
   onClose: () => void;
 };
 
@@ -22,7 +24,7 @@ const ARROWS: ReadonlyArray<{ dir: Dir; glyph: string; label: string }> = [
  * A two-swipe practice board. The player learns by doing: the first swipe moves
  * every bird, the second shows a wall stopping one bird while the others fly on.
  */
-export const Tutorial = ({ twist, onClose }: TutorialProps) => {
+export const Tutorial = ({ twist, crown, onClose }: TutorialProps) => {
   const [state, dispatch] = useReducer(gameReducer, TUTORIAL, createGame);
   const done = state.status === 'won';
 
@@ -74,6 +76,9 @@ export const Tutorial = ({ twist, onClose }: TutorialProps) => {
             <p className="muted">
               Each day: get every bird home in as few moves as you can. Match
               par for a Perfect.
+              {crown
+                ? ' Bonus: land a bird on the golden feather for a 👑.'
+                : ''}
               {twist ? ' Today the yellow bird flies the other way.' : ''}
             </p>
             <button type="button" className="btn primary" onClick={onClose}>

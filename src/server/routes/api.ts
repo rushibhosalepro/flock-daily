@@ -6,12 +6,14 @@ import { getPuzzle, getToday } from '../core/puzzle.ts';
 import {
   bumpStreak,
   getStats,
+  getBestCrown,
   getBestResult,
   getStreak,
   getTutorialDone,
   isDir,
   setTutorialDone,
   recordResult,
+  saveBestCrown,
   saveBestResult,
   toResult,
 } from '../core/results.ts';
@@ -55,10 +57,11 @@ api.get('/init', async (c) => {
     const puzzle = await getPuzzle(day);
     const userId = context.userId;
     const isToday = day === today;
-    const [username, best, streak, stats, tutorialDone, todayUrl] =
+    const [username, best, bestCrown, streak, stats, tutorialDone, todayUrl] =
       await Promise.all([
         reddit.getCurrentUsername(),
         userId ? getBestResult(puzzle, userId) : Promise.resolve(null),
+        userId ? getBestCrown(puzzle, userId) : Promise.resolve(null),
         getStreak(userId),
         getStats(day),
         getTutorialDone(userId),
@@ -73,6 +76,7 @@ api.get('/init', async (c) => {
       username: username ?? null,
       tutorialDone,
       best,
+      bestCrown,
       streak,
       stats,
     });
@@ -131,18 +135,21 @@ api.post('/submit', async (c) => {
     let streak = await getStreak(userId);
     const result = toResult(puzzle, moves);
     let best = result;
+    let bestCrown = result.feather && puzzle.crownPar !== null ? result : null;
     if (userId) {
-      // Daily stats and the streak use the first solve. The best score keeps improving on replays.
+      // Daily stats and the streak use the first solve. The best scores keep improving on replays.
       recorded = await recordResult(puzzle, userId, moves);
       if (recorded && day === today) {
         streak = await bumpStreak(userId, day);
       }
       best = await saveBestResult(puzzle, userId, moves);
+      bestCrown = await saveBestCrown(puzzle, userId, moves);
     }
     return c.json<SubmitResponse>({
       type: 'submit',
       result,
       best,
+      bestCrown,
       recorded,
       streak,
       stats: await getStats(day),

@@ -15,6 +15,11 @@ export type Level = {
   starts: Triple;
   nests: Triple;
   kinds: readonly [BirdKind, BirdKind, BirdKind];
+  /**
+   * Cell holding the golden feather, if the level has one. Any bird landing on it
+   * collects it. Getting every bird home with the feather collected earns a Crown.
+   */
+  feather?: number;
 };
 
 /** Bird positions, one cell index per bird. */
@@ -35,6 +40,13 @@ export type SolveResult = {
   optimalSolutions: number;
   /** Number of states reachable from the start. */
   reachable: number;
+};
+
+export type CrownResult = {
+  /** Fewest moves that get every bird home with the feather collected. */
+  crownPar: number;
+  /** One shortest crown solution. */
+  path: Dir[];
 };
 
 export const DIRS: readonly Dir[] = ['U', 'D', 'L', 'R'];

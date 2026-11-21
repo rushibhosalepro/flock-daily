@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   encodeChallenge,
+  isCrown,
   resultText,
   solutionSpoiler,
   untilNextPuzzle,
@@ -30,6 +31,10 @@ type ResultCardProps = {
   result: ResultInfo;
   /** The player's best solve. Sharing always uses this. */
   best: ResultInfo;
+  /** The player's best solve that collected the feather, if any. */
+  bestCrown: ResultInfo | null;
+  /** Crown par for the day, or null when the day has no feather. */
+  crownPar: number | null;
   streak: StreakInfo;
   stats: DayStats;
   recorded: boolean;
@@ -59,6 +64,8 @@ export const ResultCard = ({
   day,
   result,
   best,
+  bestCrown,
+  crownPar,
   streak,
   stats,
   recorded,
@@ -79,9 +86,27 @@ export const ResultCard = ({
     moves: best.moves,
     par: best.par,
     streak: isToday ? streak.current : 0,
+    crownPar,
+    crownMoves: bestCrown?.moves ?? null,
   });
   const atParPct =
     stats.solved > 0 ? Math.round((stats.atPar / stats.solved) * 100) : 0;
+  const roundCrown =
+    crownPar !== null && result.feather && isCrown(result.moves, crownPar);
+  const bestIsCrown =
+    crownPar !== null &&
+    bestCrown !== null &&
+    isCrown(bestCrown.moves, crownPar);
+  const crownLine =
+    crownPar === null
+      ? null
+      : roundCrown
+        ? `👑 Crown! The feather and every bird home in ${result.moves}.`
+        : bestIsCrown && bestCrown
+          ? `👑 Crown earned in ${bestCrown.moves}.`
+          : bestCrown
+            ? `🪶 Feather in ${bestCrown.moves}. Crown par is ${crownPar}.`
+            : `🪶 Bonus: grab the golden feather and finish in ${crownPar} for a Crown.`;
   return (
     <div
       className="overlay"
@@ -90,7 +115,7 @@ export const ResultCard = ({
       aria-label="Result"
     >
       <div className="card">
-        <h2>{HEADLINE[result.rating]}</h2>
+        <h2>{roundCrown ? 'Crowned! 👑' : HEADLINE[result.rating]}</h2>
         <div className="big">
           {result.moves} {result.moves === 1 ? 'move' : 'moves'} · Par{' '}
           {result.par}
@@ -98,6 +123,11 @@ export const ResultCard = ({
         {best.moves < result.moves ? (
           <p className="best-line">
             Your best: {best.moves} moves · {best.rating}
+          </p>
+        ) : null}
+        {crownLine ? (
+          <p className={`crown-line${roundCrown || bestIsCrown ? ' won' : ''}`}>
+            {crownLine}
           </p>
         ) : null}
         {isToday && loggedIn && streak.current > 0 ? (
@@ -130,6 +160,9 @@ export const ResultCard = ({
           <p className="muted">
             {stats.solved} {stats.solved === 1 ? 'player has' : 'players have'}{' '}
             solved this one · {atParPct}% hit par
+            {crownPar !== null && stats.crowned > 0
+              ? ` · ${stats.crowned} crowned`
+              : ''}
           </p>
         ) : null}
         {recorded || !loggedIn || saveError ? null : (

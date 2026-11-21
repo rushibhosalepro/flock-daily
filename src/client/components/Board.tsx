@@ -2,7 +2,7 @@ import type { CSSProperties, PointerEventHandler, Ref } from 'react';
 import { BIRDS } from '../../shared/engine/step.ts';
 import type { Dir, Level, State } from '../../shared/engine/types.ts';
 import { BIRD_LABELS } from '../constants.ts';
-import { BirdArt, NestArt, WallArt } from './Art.tsx';
+import { BirdArt, FeatherArt, NestArt, WallArt } from './Art.tsx';
 
 type Facing = readonly [boolean, boolean, boolean];
 
@@ -19,6 +19,8 @@ type BoardProps = {
   /** Changes on every swipe, so squash animations replay. */
   swipes?: number;
   lastDir?: Dir | null;
+  /** True once the golden feather has been collected this run. */
+  featherTaken?: boolean;
   boardRef?: Ref<HTMLDivElement>;
   onPointerDown?: PointerEventHandler<HTMLDivElement>;
   onPointerUp?: PointerEventHandler<HTMLDivElement>;
@@ -58,6 +60,7 @@ export const Board = ({
   bumped = NO_FACING,
   swipes = 0,
   lastDir = null,
+  featherTaken = false,
   boardRef,
   onPointerDown,
   onPointerUp,
@@ -104,6 +107,18 @@ export const Board = ({
           <WallArt variant={cell} />
         </div>
       ))}
+      {level.feather !== undefined ? (
+        <div
+          className={`piece feather${featherTaken ? ' taken' : ''}`}
+          style={pos(level.feather, size)}
+          role="img"
+          aria-label={
+            featherTaken ? 'Golden feather, collected' : 'Golden feather'
+          }
+        >
+          <FeatherArt />
+        </div>
+      ) : null}
       {BIRDS.map((i) => {
         const lit = state[i] === level.nests[i];
         return (

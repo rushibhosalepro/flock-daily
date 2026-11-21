@@ -7,6 +7,8 @@ export type PuzzleInfo = {
   twist: boolean;
   level: Level;
   par: number;
+  /** Fewest moves for a Crown, or null on a day without a feather. */
+  crownPar: number | null;
 };
 
 export type ResultInfo = {
@@ -15,11 +17,15 @@ export type ResultInfo = {
   rating: Rating;
   /** The solution as recorded on the server. */
   moveList: Dir[];
+  /** True when this solve collected the golden feather. */
+  feather: boolean;
 };
 
 export type DayStats = {
   solved: number;
   atPar: number;
+  /** Players who earned the Crown: every bird home with the feather, within Crown par. */
+  crowned: number;
 };
 
 export type StreakInfo = {
@@ -41,6 +47,8 @@ export type InitResponse = {
   tutorialDone: boolean;
   /** This player's fewest-move solve of this puzzle, or null if they have not solved it. */
   best: ResultInfo | null;
+  /** This player's fewest-move solve that collected the feather, or null. */
+  bestCrown: ResultInfo | null;
   streak: StreakInfo;
   stats: DayStats;
 };
@@ -55,6 +63,8 @@ export type SubmitResponse = {
   result: ResultInfo;
   /** The player's best solve so far, including this round. */
   best: ResultInfo;
+  /** The player's best feather solve so far, or null if none. */
+  bestCrown: ResultInfo | null;
   /** True when this round was the player's first solve, which is what daily stats count. */
   recorded: boolean;
   streak: StreakInfo;

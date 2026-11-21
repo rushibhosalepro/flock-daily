@@ -15,18 +15,37 @@ const ARROW: Record<Dir, string> = { U: '↑', D: '↓', L: '←', R: '→' };
 export const arrows = (moves: readonly Dir[]): string =>
   moves.map((m) => ARROW[m]).join('');
 
+/** A Crown solve: every bird home with the feather, in no more than Crown par moves. */
+export const isCrown = (moves: number, crownPar: number): boolean =>
+  moves <= crownPar;
+
 /** Spoiler-free result line. It never contains the move sequence. */
 export const resultText = (args: {
   day: number;
   moves: number;
   par: number;
   streak: number;
+  /** Crown par for the day, or null when the day has no feather. */
+  crownPar?: number | null;
+  /** Fewest moves of a solve that collected the feather, or null if none yet. */
+  crownMoves?: number | null;
 }): string => {
   const rating = ratingFor(args.moves, args.par);
   const lines = [
     `Flock #${args.day} 🐦`,
     `🟥🟦🟨 in ${args.moves} moves (Par ${args.par}) · ${rating}`,
   ];
+  const crownPar = args.crownPar ?? null;
+  const crownMoves = args.crownMoves ?? null;
+  if (crownPar !== null) {
+    if (crownMoves !== null && isCrown(crownMoves, crownPar)) {
+      lines.push(`👑 Crown in ${crownMoves} (Crown par ${crownPar})`);
+    } else if (crownMoves !== null) {
+      lines.push(`🪶 Feather in ${crownMoves} (Crown par ${crownPar})`);
+    } else {
+      lines.push(`🪶 Crown par ${crownPar}: not yet`);
+    }
+  }
   if (args.streak > 1) lines.push(`🔥 ${args.streak} day streak`);
   return lines.join('\n');
 };

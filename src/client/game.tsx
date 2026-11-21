@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from 'react';
 import type { CSSProperties } from 'react';
@@ -52,6 +53,7 @@ type CardData = {
   /** The round just played, or the best solve when the card opens on load. */
   result: ResultInfo;
   best: ResultInfo;
+  bestCrown: ResultInfo | null;
   streak: StreakInfo;
   stats: DayStats;
   recorded: boolean;
@@ -106,11 +108,19 @@ const Game = ({ init }: { init: InitResponse }) => {
     () => !init.tutorialDone && !hasSeenHelp()
   );
   const [best, setBest] = useState<ResultInfo | null>(init.best);
+  const [bestCrown, setBestCrown] = useState<ResultInfo | null>(init.bestCrown);
+  // Latest bests, read by the solve handler without re-running it.
+  const bests = useRef<{ best: ResultInfo | null; crown: ResultInfo | null }>({
+    best: init.best,
+    crown: init.bestCrown,
+  });
+  const featherRun = state.feather;
   const [card, setCard] = useState<CardData | null>(() =>
     init.best
       ? {
           result: init.best,
           best: init.best,
+          bestCrown: init.bestCrown,
           streak: init.streak,
           stats: init.stats,
           recorded: true,
@@ -183,10 +193,13 @@ const Game = ({ init }: { init: InitResponse }) => {
       ]);
       if (cancelled) return;
       if (outcome) {
+        bests.current = { best: outcome.best, crown: outcome.bestCrown };
         setBest(outcome.best);
+        setBestCrown(outcome.bestCrown);
         setCard({
           result: outcome.result,
           best: outcome.best,
+          bestCrown: outcome.bestCrown,
           streak: outcome.streak,
           stats: outcome.stats,
           recorded: outcome.recorded,
@@ -199,18 +212,28 @@ const Game = ({ init }: { init: InitResponse }) => {
           par: puzzle.par,
           rating: ratingFor(moves.length, puzzle.par),
           moveList: moves,
+          feather: featherRun,
         };
-        setBest((prev) => {
-          const next = prev && prev.moves <= round.moves ? prev : round;
-          setCard({
-            result: round,
-            best: next,
-            streak: init.streak,
-            stats: init.stats,
-            recorded: false,
-            saveError: true,
-          });
-          return next;
+        const prev = bests.current;
+        const nextBest =
+          prev.best && prev.best.moves <= round.moves ? prev.best : round;
+        const nextCrown =
+          !round.feather || puzzle.crownPar === null
+            ? prev.crown
+            : prev.crown && prev.crown.moves <= round.moves
+              ? prev.crown
+              : round;
+        bests.current = { best: nextBest, crown: nextCrown };
+        setBest(nextBest);
+        setBestCrown(nextCrown);
+        setCard({
+          result: round,
+          best: nextBest,
+          bestCrown: nextCrown,
+          streak: init.streak,
+          stats: init.stats,
+          recorded: false,
+          saveError: true,
         });
       }
       setCardOpen(true);
@@ -220,7 +243,15 @@ const Game = ({ init }: { init: InitResponse }) => {
     return () => {
       cancelled = true;
     };
-  }, [state.status, state.moves, puzzle.par, init.streak, init.stats]);
+  }, [
+    state.status,
+    state.moves,
+    featherRun,
+    puzzle.par,
+    puzzle.crownPar,
+    init.streak,
+    init.stats,
+  ]);
 
   const closeHelp = () => {
     markHelpSeen();
@@ -250,6 +281,10 @@ const Game = ({ init }: { init: InitResponse }) => {
     (i) => frame.current[i] === puzzle.level.nests[i]
   );
   const homeCount = homeFlags.filter(Boolean).length;
+  const crowned =
+    puzzle.crownPar !== null &&
+    bestCrown !== null &&
+    bestCrown.moves <= puzzle.crownPar;
   const status =
     state.status === 'won'
       ? `Solved in ${moves} moves. Par is ${puzzle.par}.`
@@ -341,6 +376,18 @@ const Game = ({ init }: { init: InitResponse }) => {
               <span className="k">Best</span>
               <b className="v">{best ? best.moves : '–'}</b>
             </span>
+            {puzzle.crownPar !== null ? (
+              <span
+                className={`stat crown${frame.feather ? ' got' : ''}${crowned ? ' done' : ''}`}
+                title={`Crown: every bird home with the golden feather in ${puzzle.crownPar} moves`}
+              >
+                <span className="k" aria-hidden="true">
+                  👑
+                </span>
+                <span className="sr-only">Crown par</span>
+                <b className="v">{puzzle.crownPar}</b>
+              </span>
+            ) : null}
           </div>
         </div>
 
@@ -354,6 +401,7 @@ const Game = ({ init }: { init: InitResponse }) => {
             bumped={frame.bumped}
             swipes={frame.swipes}
             lastDir={frame.lastDir}
+            featherTaken={frame.feather}
             {...swipe}
           />
         </div>
@@ -414,12 +462,20 @@ const Game = ({ init }: { init: InitResponse }) => {
         {status}
       </div>
 
-      {helpOpen ? <Tutorial twist={puzzle.twist} onClose={closeHelp} /> : null}
+      {helpOpen ? (
+        <Tutorial
+          twist={puzzle.twist}
+          crown={puzzle.crownPar !== null}
+          onClose={closeHelp}
+        />
+      ) : null}
       {cardOpen && card && !helpOpen ? (
         <ResultCard
           day={puzzle.day}
           result={card.result}
           best={card.best}
+          bestCrown={card.bestCrown}
+          crownPar={puzzle.crownPar}
           streak={card.streak}
           stats={card.stats}
           recorded={card.recorded}
@@ -438,7 +494,16 @@ const Game = ({ init }: { init: InitResponse }) => {
           onToday={todayUrl ? goToday : null}
         />
       ) : null}
-      <Celebrate burst={burst} big={card?.result.rating === 'Perfect'} />
+      <Celebrate
+        burst={burst}
+        big={
+          card?.result.rating === 'Perfect' ||
+          (card !== null &&
+            card.result.feather &&
+            puzzle.crownPar !== null &&
+            card.result.moves <= puzzle.crownPar)
+        }
+      />
     </main>
   );
 };

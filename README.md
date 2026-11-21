@@ -15,6 +15,7 @@ A daily puzzle for Reddit. One swipe moves three birds at once. Put each bird on
 - **Get each bird onto its own nest** in as few moves as you can.
 - **Par** is the fewest moves possible, found by a solver. Match it for a Perfect.
 - **Twist days:** the yellow bird flies the opposite way.
+- **Golden Feather:** most days have a feather on the board. Get every bird home *and* land a bird on the feather for a 👑 Crown. Crown par is set by the solver and is always 1 to 4 moves above par, so players choose between the shortest route and the Crown.
 
 Everyone in a community gets the same puzzle each day. New players get a two-swipe tutorial the first time they open it.
 

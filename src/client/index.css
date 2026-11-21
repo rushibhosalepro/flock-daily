@@ -144,7 +144,13 @@ button:focus-visible,
   }
 
   .stage .hud-stats {
-    justify-content: space-between;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .stage .stat {
+    padding: 2px 7px;
   }
 
   /* Controls become a small d-pad with undo and restart either side. */
@@ -333,6 +339,38 @@ button:focus-visible,
   font-weight: 800;
 }
 
+.card p.crown-line {
+  font-size: 15px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 12px;
+  background: #fff4cc;
+  color: #7a5200;
+}
+
+.card p.crown-line.won {
+  background: #ffe27a;
+  color: #4a3200;
+}
+
+/* The Crown chip glows once the feather is in hand, and turns solid gold once earned. */
+.stat.crown {
+  background: #fff4cc;
+}
+
+.stat.crown .k {
+  font-size: 13px;
+}
+
+.stat.crown.got {
+  background: #ffe27a;
+  box-shadow: 0 0 0 2px #f5b301;
+}
+
+.stat.crown.done {
+  background: #f5b301;
+}
+
 /* ---------- board ---------- */
 
 .board-wrap {
@@ -450,6 +488,44 @@ button:focus-visible,
 
 .board.won .piece.bird svg {
   animation: hop 520ms ease-out;
+}
+
+/* The golden feather bobs gently until a bird lands on it, then floats away. */
+.piece.feather {
+  transition: none;
+}
+
+.piece.feather svg {
+  animation: bob 1.8s ease-in-out infinite;
+}
+
+.piece.feather.taken svg {
+  animation: collect 420ms ease-out forwards;
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6%) rotate(6deg);
+  }
+}
+
+@keyframes collect {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  45% {
+    transform: translateY(-30%) scale(1.35);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60%) scale(0.6);
+    opacity: 0;
+  }
 }
 
 /* Eyes blink now and then. */
@@ -879,6 +955,19 @@ button:focus-visible,
   .home-text.goal-short {
     display: inline;
   }
+  /* The colored rings already say what the count means. */
+  .home-word {
+    display: none;
+  }
+  .hud {
+    padding: 6px 8px;
+  }
+  .hud-stats {
+    gap: 4px;
+  }
+  .stat {
+    padding: 2px 6px;
+  }
 }
 
 /* Narrow phones: shrink the status bar text before anything overlaps. */
@@ -895,6 +984,10 @@ button:focus-visible,
   .home-word {
     display: none;
   }
+  /* The rings fill in as birds land, which is enough at this width. */
+  .home-text {
+    display: none !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -902,8 +995,13 @@ button:focus-visible,
   .bird-flip {
     transition: none;
   }
+  .piece.feather.taken {
+    opacity: 0;
+  }
   .card,
   .bird-eye,
+  .piece.feather svg,
+  .piece.feather.taken svg,
   .bump-R,
   .bump-L,
   .bump-U,

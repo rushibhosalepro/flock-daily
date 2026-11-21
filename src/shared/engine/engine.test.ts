@@ -11,7 +11,7 @@ import {
   solutionSpoiler,
   untilNextPuzzle,
 } from './share.ts';
-import { solve, walkBound } from './solver.ts';
+import { crownTable, solve, solveCrown, walkBound } from './solver.ts';
 import { isSolved, replay, step, validateLevel } from './step.ts';
 import type { Level } from './types.ts';
 
@@ -304,6 +304,112 @@ test('challenges round-trip and reject bad share data', () => {
   assert.equal(parseChallenge('{"v":1,"d":3,"m":6,"b":"<script>"}'), null);
   assert.equal(parseChallenge('{"v":1,"d":3.5,"m":6,"b":null}'), null);
   assert.ok(!encodeChallenge(c).includes('U'), 'no move list inside');
+});
+
+test('replay reports whether a bird landed on the feather', () => {
+  const level = base({ feather: at(0, 2) });
+  assert.equal(replay(level, ['R'])?.feather, false);
+  assert.equal(replay(level, ['R', 'R'])?.feather, true);
+  // Collected stays collected after the bird flies on.
+  assert.equal(replay(level, ['R', 'R', 'R', 'R'])?.feather, true);
+  assert.equal(replay(base({}), ['R', 'R', 'R', 'R'])?.feather, false);
+});
+
+test('validateLevel rejects feathers on walls, birds, nests or off the board', () => {
+  assert.equal(validateLevel(base({ feather: at(1, 1) })), null);
+  assert.ok(validateLevel(base({ feather: at(1, 1), walls: [at(1, 1)] })));
+  assert.ok(validateLevel(base({ feather: at(0, 0) })));
+  assert.ok(validateLevel(base({ feather: at(0, 4) })));
+  assert.ok(validateLevel(base({ feather: 25 })));
+});
+
+test('crown search and the all-cells crown table agree on random boards', () => {
+  const rng = makeRng(2024);
+  const options = {
+    size: 5,
+    minWalls: 3,
+    maxWalls: 7,
+    minPar: 0,
+    maxPar: 99,
+    maxOptimalSolutions: Infinity,
+    kinds: ['normal', 'normal', 'contrary'],
+  } as const;
+  let checkedCells = 0;
+  let boards = 0;
+  while (boards < 25) {
+    const level = randomLevel(rng, options);
+    if (validateLevel(level) !== null) continue;
+    const plain = solve(level);
+    if (!plain) continue;
+    boards += 1;
+    const table = crownTable(level);
+    assert.ok(table);
+    const blocked = new Set([...level.walls, ...level.starts, ...level.nests]);
+    for (let cell = 0; cell < 25; cell++) {
+      if (blocked.has(cell)) continue;
+      const withFeather: Level = { ...level, feather: cell };
+      const direct = solveCrown(withFeather);
+      const fromTable: number = table[cell] ?? -1;
+      assert.equal(direct?.crownPar ?? -1, fromTable, `cell ${cell}`);
+      if (direct) {
+        assert.ok(
+          direct.crownPar >= plain.par,
+          'crown is never shorter than par'
+        );
+        assert.equal(direct.path.length, direct.crownPar);
+        const r = replay(withFeather, direct.path);
+        assert.ok(r?.solved && r.feather, 'crown path solves and collects');
+      }
+      checkedCells += 1;
+    }
+  }
+  assert.ok(checkedCells > 300);
+});
+
+test('daily feathers are valid, cost a real detour, and never change par', () => {
+  let withCrown = 0;
+  for (let day = 1; day <= 60; day++) {
+    const p = puzzleForDay(day);
+    const plan = planForDay(day);
+    assert.equal(validateLevel(p.level), null, `day ${day} invalid`);
+    // Par is solved on the board without the feather, and the feather does not affect movement.
+    const { feather: _drop, ...bare } = p.level;
+    assert.equal(solve(bare)?.par, p.solution.par);
+    if (!p.crown) continue;
+    withCrown += 1;
+    assert.equal(solveCrown(p.level)?.crownPar, p.crown.crownPar);
+    const extra = p.crown.crownPar - p.solution.par;
+    assert.ok(
+      extra >= plan.crownMin && extra <= plan.crownMax,
+      `day ${day} crown extra ${extra}`
+    );
+    const r = replay(p.level, p.crown.path);
+    assert.ok(r?.solved && r.feather, `day ${day} crown path`);
+    // The par route must not already collect the feather, or the Crown is free.
+    assert.equal(
+      replay(p.level, p.solution.path)?.feather,
+      false,
+      `day ${day} free crown`
+    );
+  }
+  assert.ok(withCrown >= 54, `only ${withCrown} of 60 days have a feather`);
+});
+
+test('share text shows the crown line', () => {
+  const base3 = { day: 3, moves: 6, par: 6, streak: 1 };
+  assert.match(
+    resultText({ ...base3, crownPar: 8, crownMoves: 8 }),
+    /👑 Crown in 8 \(Crown par 8\)/
+  );
+  assert.match(
+    resultText({ ...base3, crownPar: 8, crownMoves: 10 }),
+    /🪶 Feather in 10/
+  );
+  assert.match(
+    resultText({ ...base3, crownPar: 8, crownMoves: null }),
+    /Crown par 8: not yet/
+  );
+  assert.doesNotMatch(resultText(base3), /Crown/);
 });
 
 test('share text is spoiler free and ratings follow par', () => {

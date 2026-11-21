@@ -121,19 +121,34 @@ export const validateLevel = (level: Level): string | null => {
     if (wallSet.has(cell)) return 'bird or nest on a wall';
   }
   if (isSolved(level, level.starts)) return 'level starts solved';
+  if (level.feather !== undefined) {
+    const f = level.feather;
+    if (!Number.isInteger(f) || f < 0 || f >= cells) {
+      return 'feather out of range';
+    }
+    if (wallSet.has(f)) return 'feather on a wall';
+    if (level.starts.includes(f)) return 'feather under a bird';
+    if (level.nests.includes(f)) return 'feather on a nest';
+  }
   return null;
 };
+
+/** True when some bird sits on the level's feather cell. */
+export const onFeather = (level: Level, state: State): boolean =>
+  level.feather !== undefined && state.includes(level.feather);
 
 /** Replays a move list. Returns null if any move changes nothing. */
 export const replay = (
   level: Level,
   moves: readonly Dir[]
-): { state: State; solved: boolean } | null => {
+): { state: State; solved: boolean; feather: boolean } | null => {
   let state: State = level.starts;
+  let feather = onFeather(level, state);
   for (const move of moves) {
     const result = step(level, state, move);
     if (!result.changed) return null;
     state = result.state;
+    if (onFeather(level, state)) feather = true;
   }
-  return { state, solved: isSolved(level, state) };
+  return { state, solved: isSolved(level, state), feather };
 };

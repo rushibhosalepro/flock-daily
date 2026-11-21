@@ -1,5 +1,6 @@
 import { redis } from '@devvit/web/server';
-import { ratingFor } from '../../shared/engine/share.ts';
+import { isCrown, ratingFor } from '../../shared/engine/share.ts';
+import { replay } from '../../shared/engine/step.ts';
 import { dayKey } from './puzzle.ts';
 import type { Dir } from '../../shared/engine/types.ts';
 import type {
@@ -27,6 +28,7 @@ export const toResult = (puzzle: PuzzleInfo, moves: Dir[]): ResultInfo => ({
   par: puzzle.par,
   rating: ratingFor(moves.length, puzzle.par),
   moveList: moves,
+  feather: replay(puzzle.level, moves)?.feather ?? false,
 });
 
 export const getStoredResult = async (
@@ -65,6 +67,40 @@ export const saveBestResult = async (
   return toResult(puzzle, moves);
 };
 
+export const getBestCrown = async (
+  puzzle: PuzzleInfo,
+  userId: string
+): Promise<ResultInfo | null> => {
+  if (puzzle.crownPar === null) return null;
+  const text = await redis.hGet(dayKey('k', puzzle.day), userId);
+  const moves = text ? parseMoves(text) : [];
+  return moves.length > 0 ? toResult(puzzle, moves) : null;
+};
+
+/**
+ * Keeps a feather solve if it is the player's shortest one. The first time a
+ * player's best feather solve reaches Crown par, the day's Crown count goes up.
+ * Returns the best feather solve after saving, or null for solves without the feather.
+ */
+export const saveBestCrown = async (
+  puzzle: PuzzleInfo,
+  userId: string,
+  moves: Dir[]
+): Promise<ResultInfo | null> => {
+  const current = await getBestCrown(puzzle, userId);
+  const crownPar = puzzle.crownPar;
+  if (crownPar === null) return current;
+  const round = toResult(puzzle, moves);
+  if (!round.feather) return current;
+  if (current && current.moves <= round.moves) return current;
+  await redis.hSet(dayKey('k', puzzle.day), { [userId]: moves.join('') });
+  const wasCrown = current !== null && isCrown(current.moves, crownPar);
+  if (!wasCrown && isCrown(round.moves, crownPar)) {
+    await redis.hIncrBy(dayKey('s', puzzle.day), 'crowned', 1);
+  }
+  return round;
+};
+
 /** Stores the first solve for a user. Returns true only for the first one. */
 export const recordResult = async (
   puzzle: PuzzleInfo,
@@ -90,6 +126,7 @@ export const getStats = async (day: number): Promise<DayStats> => {
   return {
     solved: Number(raw['solved'] ?? 0),
     atPar: Number(raw['atPar'] ?? 0),
+    crowned: Number(raw['crowned'] ?? 0),
   };
 };
 
