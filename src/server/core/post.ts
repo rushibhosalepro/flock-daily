@@ -1,5 +1,7 @@
 import { context, redis, reddit } from '@devvit/web/server';
 import { getPuzzle, getToday } from './puzzle.ts';
+import { getLeaders, getStats } from './results.ts';
+import { recapText } from '../../shared/community.ts';
 
 const urlKey = (day: number): string => `flock:postUrl:${day}`;
 
@@ -41,6 +43,32 @@ export const createDailyPost = async (
   }
 };
 
+/**
+ * How the day before went, for the top of a new day's results thread.
+ * Null on day 1, when nobody solved, or if the numbers cannot be read.
+ */
+const yesterdayRecap = async (day: number): Promise<string | null> => {
+  if (day <= 1) return null;
+  try {
+    const [puzzle, stats, leaders] = await Promise.all([
+      getPuzzle(day - 1),
+      getStats(day - 1),
+      getLeaders(day - 1, undefined),
+    ]);
+    return recapText({
+      day: day - 1,
+      par: puzzle.par,
+      solved: stats.solved,
+      atPar: stats.atPar,
+      crowned: stats.crowned,
+      top: leaders.top,
+    });
+  } catch (error) {
+    console.error(`could not build the recap for day ${day - 1}`, error);
+    return null;
+  }
+};
+
 const threadKey = (postId: string): string => `flock:scores:${postId}`;
 const isCommentId = (id: string | undefined): id is `t1_${string}` =>
   id !== undefined && id.startsWith('t1_');
@@ -66,9 +94,11 @@ export const getScoresThread = async (
     throw new Error('the scores comment is still being made');
   }
   try {
+    const intro = `**Flock #${day} results.** Tap "Post to comments" in the game to add yours here. Solutions are hidden as spoilers.`;
+    const recap = await yesterdayRecap(day);
     const comment = await reddit.submitComment({
       id: postId,
-      text: `**Flock #${day} results.** Tap "Post to comments" in the game to add yours here. Solutions are hidden as spoilers.`,
+      text: recap ? `${intro}\n\n${recap}` : intro,
     });
     await comment.distinguish(true);
     await redis.set(threadKey(postId), comment.id);

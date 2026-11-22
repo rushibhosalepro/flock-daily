@@ -122,12 +122,20 @@ export const addLeader = async (
   });
 };
 
-/** Marks that a player earned the Crown today, for the badge on the top solvers list. */
+/**
+ * Marks that a player earned the Crown on this puzzle, for the badge on the top
+ * solvers list, and counts it once towards their Crown total (field `crw`).
+ * Returns true only the first time for this puzzle.
+ */
 export const markCrowned = async (
   day: number,
-  username: string
-): Promise<void> => {
-  await redis.hSet(dayKey('w', day), { [username]: '1' });
+  username: string,
+  userId: string
+): Promise<boolean> => {
+  const added = await redis.hSetNX(dayKey('w', day), username, '1');
+  if (added !== 1) return false;
+  await redis.hIncrBy(`flock:u:${userId}`, 'crw', 1);
+  return true;
 };
 
 const TOP = 3;

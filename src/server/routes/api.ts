@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { context, reddit } from '@devvit/web/server';
 import { replay } from '../../shared/engine/step.ts';
 import { getPostUrl, getScoresThread } from '../core/post.ts';
+import { updatePlayerFlair } from '../core/flair.ts';
 import { getPuzzle, getToday } from '../core/puzzle.ts';
 import { commentText, isCrown } from '../../shared/engine/share.ts';
 import {
@@ -294,12 +295,14 @@ api.post('/submit', async (c) => {
       bestCrown = await saveBestCrown(puzzle, userId, moves);
       if (username) {
         if (recorded) await addLeader(day, username, moves.length);
-        if (
-          bestCrown &&
+        const newCrown =
+          bestCrown !== null &&
           puzzle.crownPar !== null &&
-          isCrown(bestCrown.moves, puzzle.crownPar)
-        ) {
-          await markCrowned(day, username);
+          isCrown(bestCrown.moves, puzzle.crownPar) &&
+          (await markCrowned(day, username, userId));
+        // Flair shows the streak and Crown count, so it changes only after these two events.
+        if (recorded || newCrown) {
+          await updatePlayerFlair(userId, username, today);
         }
       }
     }
