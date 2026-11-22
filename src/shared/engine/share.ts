@@ -19,9 +19,15 @@ export const arrows = (moves: readonly Dir[]): string =>
 export const isCrown = (moves: number, crownPar: number): boolean =>
   moves <= crownPar;
 
+/** The puzzle's name: "Flock #12", or "Community Flock by u/name" for a Studio board. */
+export const puzzleTitle = (day: number, by: string | null): string =>
+  by === null ? `Flock #${day}` : `Community Flock by u/${by}`;
+
 /** Spoiler-free result line. It never contains the move sequence. */
 export const resultText = (args: {
   day: number;
+  /** Replaces "Flock #day", for Studio boards. */
+  title?: string;
   moves: number;
   par: number;
   streak: number;
@@ -32,7 +38,7 @@ export const resultText = (args: {
 }): string => {
   const rating = ratingFor(args.moves, args.par);
   const lines = [
-    `Flock #${args.day} 🐦`,
+    `${args.title ?? `Flock #${args.day}`} 🐦`,
     `🟥🟦🟨 in ${args.moves} moves (Par ${args.par}) · ${rating}`,
   ];
   const crownPar = args.crownPar ?? null;

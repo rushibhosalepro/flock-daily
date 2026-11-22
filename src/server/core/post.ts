@@ -32,7 +32,7 @@ export const createDailyPost = async (
     const url = fullUrl(post.permalink);
     await redis.set(urlKey(target), url);
     // The scores comment is also made on first use, so a failure here is not fatal.
-    await getScoresThread(post.id, target).catch((error: unknown) =>
+    await getScoresThread(post.id, `Flock #${target}`, target).catch((error: unknown) =>
       console.error('could not make the scores comment', error)
     );
     return { id: post.id, day: target, url };
@@ -81,7 +81,10 @@ const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
  */
 export const getScoresThread = async (
   postId: `t3_${string}`,
-  day: number
+  /** "Flock #12" or "Community Flock by u/name". */
+  title: string,
+  /** The daily puzzle number, so yesterday's recap can head the thread. Null for Studio boards. */
+  day: number | null
 ): Promise<`t1_${string}`> => {
   const stored = await redis.get(threadKey(postId));
   if (isCommentId(stored)) return stored;
@@ -94,8 +97,8 @@ export const getScoresThread = async (
     throw new Error('the scores comment is still being made');
   }
   try {
-    const intro = `**Flock #${day} results.** Tap "Post to comments" in the game to add yours here. Solutions are hidden as spoilers.`;
-    const recap = await yesterdayRecap(day);
+    const intro = `**${title} results.** Tap "Post to comments" in the game to add yours here. Solutions are hidden as spoilers.`;
+    const recap = day === null ? null : await yesterdayRecap(day);
     const comment = await reddit.submitComment({
       id: postId,
       text: recap ? `${intro}\n\n${recap}` : intro,

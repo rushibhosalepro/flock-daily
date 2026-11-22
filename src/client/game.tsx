@@ -10,7 +10,11 @@ import {
 } from 'react';
 import type { CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
-import { parseChallenge, ratingFor } from '../shared/engine/share.ts';
+import {
+  parseChallenge,
+  puzzleTitle,
+  ratingFor,
+} from '../shared/engine/share.ts';
 import type { Dir } from '../shared/engine/types.ts';
 import type { GameState } from './hooks/useGame.ts';
 import { Celebrate } from './components/Celebrate.tsx';
@@ -46,6 +50,7 @@ import { BIRD_COLORS } from './constants.ts';
 import { ResultCard } from './components/Overlays.tsx';
 import type { CommentState, JoinState } from './components/Overlays.tsx';
 import { Tutorial } from './components/Tutorial.tsx';
+import { Studio } from './components/Studio.tsx';
 import { createGame, gameReducer } from './hooks/useGame.ts';
 import { useKeys, useSwipe } from './hooks/useInput.ts';
 
@@ -239,8 +244,19 @@ const Game = ({ init }: { init: InitResponse }) => {
     dispatch({ type: 'undo' });
   }, []);
 
+  const [studioOpen, setStudioOpen] = useState(false);
+  const openStudio = useCallback(() => {
+    setCardOpen(false);
+    setStudioOpen(true);
+  }, []);
+  const closeStudio = useCallback(() => setStudioOpen(false), []);
+
   const locked =
-    helpOpen || cardOpen || replay !== null || state.status === 'won';
+    helpOpen ||
+    cardOpen ||
+    studioOpen ||
+    replay !== null ||
+    state.status === 'won';
   useKeys({ onMove, onUndo, locked });
   const swipe = useSwipe(onMove, locked);
 
@@ -340,6 +356,7 @@ const Game = ({ init }: { init: InitResponse }) => {
     challenge !== null && best === null && state.status !== 'won';
   const sender = challenge?.by ? `u/${challenge.by}` : 'A friend';
   const todayUrl = init.isToday ? null : init.todayUrl;
+  const author = puzzle.custom?.by ?? null;
   const goToday = () => {
     if (!todayUrl) return;
     try {
@@ -368,10 +385,16 @@ const Game = ({ init }: { init: InitResponse }) => {
       <div className={`stage${hasBanner ? ' has-twist' : ''}`}>
         <header className="topbar">
           <div className="title">
-            Flock #{puzzle.day}
-            <span className={`pill${puzzle.twist ? ' twist' : ''}`}>
-              {init.isToday ? puzzle.label : 'Practice'}
-            </span>
+            {author !== null ? 'Community Flock' : `Flock #${puzzle.day}`}
+            {author !== null ? (
+              <span className="pill author" title={`Built by u/${author}`}>
+                by u/{author}
+              </span>
+            ) : (
+              <span className={`pill${puzzle.twist ? ' twist' : ''}`}>
+                {init.isToday ? puzzle.label : 'Practice'}
+              </span>
+            )}
           </div>
           <div className="top-actions">
             <button
@@ -408,9 +431,13 @@ const Game = ({ init }: { init: InitResponse }) => {
           <div className="replay-bar today-bar">
             <span>
               <span className="today-long">
-                Old puzzle. Today is Flock #{init.today}.
+                {author !== null
+                  ? `Community puzzle. Today's daily is Flock #${init.today}.`
+                  : `Old puzzle. Today is Flock #${init.today}.`}
               </span>
-              <span className="today-short">Older puzzle</span>
+              <span className="today-short">
+                {author !== null ? 'Community puzzle' : 'Older puzzle'}
+              </span>
             </span>
             <button type="button" className="btn primary" onClick={goToday}>
               Play #{init.today} →
@@ -576,6 +603,9 @@ const Game = ({ init }: { init: InitResponse }) => {
       {cardOpen && card && !helpOpen ? (
         <ResultCard
           day={puzzle.day}
+          title={puzzleTitle(puzzle.day, author)}
+          author={author}
+          onStudio={openStudio}
           result={card.result}
           best={card.best}
           bestCrown={card.bestCrown}
@@ -611,6 +641,9 @@ const Game = ({ init }: { init: InitResponse }) => {
           onJoin={() => void sendJoin()}
           onToday={todayUrl ? goToday : null}
         />
+      ) : null}
+      {studioOpen ? (
+        <Studio loggedIn={init.username !== null} onClose={closeStudio} />
       ) : null}
     </main>
   );

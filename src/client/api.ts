@@ -1,9 +1,10 @@
-import type { Dir } from '../shared/engine/types.ts';
+import type { Dir, Level } from '../shared/engine/types.ts';
 import type {
   CommentResponse,
   ErrorResponse,
   InitResponse,
   JoinResponse,
+  StudioPostResponse,
   SubmitRequest,
   SubmitResponse,
 } from '../shared/api.ts';
@@ -50,6 +51,21 @@ export const postComment = async (): Promise<CommentResponse> => {
   const body: unknown = await response.json();
   if (isComment(body)) return body;
   throw new Error(isError(body) ? body.message : 'Could not post the comment');
+};
+
+const isStudioPost = (value: unknown): value is StudioPostResponse =>
+  hasField(value, 'type', 'studio-post');
+
+/** Asks the server to check a Studio board and post it, as the player. Throws with the reason if refused. */
+export const postStudioBoard = async (level: Level): Promise<StudioPostResponse> => {
+  const response = await fetch('/api/studio/post', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ level }),
+  });
+  const body: unknown = await response.json();
+  if (isStudioPost(body)) return body;
+  throw new Error(isError(body) ? body.message : 'Could not post the puzzle');
 };
 
 /** Saves the sound choice. Failure is harmless: it only resets on the next visit. */

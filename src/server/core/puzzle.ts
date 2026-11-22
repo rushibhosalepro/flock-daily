@@ -17,8 +17,17 @@ const EPOCH_KEY = 'flock:epoch';
  */
 export const dayKey = (
   kind: 'p' | 'r' | 's' | 'b' | 'k' | 'h' | 'c' | 'l' | 'w',
-  day: number
-): string => `flock:v${PUZZLE_VERSION}:${kind}:${day}`;
+  slot: Slot
+): string => `flock:v${PUZZLE_VERSION}:${kind}:${slot}`;
+
+/**
+ * Where a puzzle's results live: the day number for a daily puzzle, or
+ * `c` plus the board id for a Studio board, so the two never share keys.
+ */
+export type Slot = number | `c${number}`;
+
+export const puzzleSlot = (puzzle: PuzzleInfo): Slot =>
+  puzzle.custom ? `c${puzzle.custom.id}` : puzzle.day;
 const memory = new Map<number, PuzzleInfo>();
 
 /** UTC date of puzzle 1. It is set the first time the app asks for it. */

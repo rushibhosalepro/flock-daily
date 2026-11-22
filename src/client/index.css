@@ -1522,3 +1522,283 @@ button:focus-visible,
     animation: none;
   }
 }
+
+/* ---------- Flock Studio ---------- */
+
+/* The editor covers the post. It sizes itself from the post frame, like the game. */
+.studio {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  container-type: size;
+  container-name: studio;
+  background:
+    radial-gradient(120% 60% at 15% 108%, #b5d98a 0 48%, transparent 49%),
+    linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+}
+
+.studio-stage {
+  height: 100%;
+  box-sizing: border-box;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 8px 12px 10px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  align-items: center;
+  grid-template-columns: 100%;
+  grid-template-rows: auto 1fr auto auto auto;
+  grid-template-areas: 'head' 'board' 'tools' 'status' 'actions';
+}
+
+.studio-head {
+  grid-area: head;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.studio-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.studio-head .close-btn {
+  position: static;
+}
+
+.studio-board-wrap {
+  grid-area: board;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.studio .studio-board {
+  width: max(150px, min(100cqw - 24px, 100cqh - 236px, 420px));
+  touch-action: manipulation;
+}
+
+/* Cells are the tap targets; the pieces drawn over them let taps through. */
+.studio-board button.cell {
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.studio-board button.cell:hover {
+  filter: brightness(1.06);
+}
+
+.studio-board button.cell:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: -3px;
+  z-index: 3;
+}
+
+.studio-board .piece {
+  pointer-events: none;
+  transition: none;
+}
+
+.studio-tools {
+  grid-area: tools;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 42px));
+  justify-content: center;
+  gap: 4px;
+}
+
+.tool {
+  aspect-ratio: 1 / 1;
+  border: none;
+  border-radius: 10px;
+  padding: 3px;
+  background: var(--card);
+  box-shadow:
+    0 0 0 2px #e7dcc0 inset,
+    0 2px 0 var(--press);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.tool svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tool.on {
+  background: #e3f4ea;
+  box-shadow:
+    0 0 0 3px var(--accent) inset,
+    0 2px 0 var(--accent-dark);
+}
+
+.erase-glyph {
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--muted);
+}
+
+.studio-status {
+  grid-area: status;
+  margin: 0;
+  min-height: 2.6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: var(--muted);
+}
+
+.studio-status.ok {
+  color: var(--accent-dark);
+}
+
+.studio-status.bad {
+  color: #b4361f;
+}
+
+.studio-actions {
+  grid-area: actions;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.studio-actions .btn {
+  flex: 1;
+}
+
+.studio-actions .btn.primary {
+  flex: 2;
+}
+
+/* Wide, short frames: board on the left, tools and actions in a panel on the right. */
+@container studio (min-aspect-ratio: 23 / 20) {
+  .studio-stage {
+    max-width: 900px;
+    column-gap: 18px;
+    grid-template-columns: auto 240px;
+    grid-template-rows: 1fr auto auto auto auto 1fr;
+    grid-template-areas:
+      'board .'
+      'board head'
+      'board tools'
+      'board status'
+      'board actions'
+      'board .';
+    justify-content: center;
+  }
+  .studio .studio-board {
+    width: max(180px, min(100cqh - 24px, 100cqw - 300px, 560px));
+  }
+  .studio-tools {
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .studio-actions {
+    flex-direction: column;
+  }
+  .studio-actions .btn,
+  .studio-actions .btn.primary {
+    flex: none;
+  }
+}
+
+/* Short frames: smaller type and buttons so the board keeps its room. */
+@container studio (max-height: 470px) {
+  .studio-stage {
+    gap: 5px;
+    padding: 6px 10px 8px;
+  }
+  .studio-head h2 {
+    font-size: 17px;
+  }
+  .studio-status {
+    min-height: 2.4em;
+    font-size: 13px;
+  }
+  .studio-actions .btn {
+    min-height: 38px;
+    padding: 4px 10px;
+    font-size: 15px;
+  }
+}
+
+/* Join and Build share one line; a long subreddit name is cut short rather than wrapping. */
+.card-links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0 6px;
+  min-width: 0;
+}
+
+.card-links > * {
+  min-width: 0;
+}
+
+.card-links .studio-link {
+  flex: none;
+}
+
+@container app (max-width: 470px) {
+  .result-card .studio-link .lbl-long {
+    display: none;
+  }
+  .result-card .studio-link .lbl-short {
+    display: inline;
+  }
+}
+
+.card-links .join-pill,
+.card-links .studio-link {
+  align-self: center;
+}
+
+.studio-link {
+  border: none;
+  background: none;
+  padding: 2px 8px;
+  min-height: 30px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  color: #6a4bc4;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.studio-link:hover {
+  text-decoration: underline;
+}
+
+.studio-link .lbl-short {
+  display: none;
+}
+
+/* On a Studio board the header names the builder. Long usernames are cut short, never pushed off. */
+.topbar .title {
+  min-width: 0;
+}
+
+.pill.author {
+  min-width: 0;
+  max-width: 46cqw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #ece6ff;
+  color: #4b3696;
+}

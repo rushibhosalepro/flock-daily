@@ -10,7 +10,8 @@ import { extname, join, normalize } from 'node:path';
 import { puzzleForDay } from '../src/shared/engine/daily.ts';
 import { ratingFor } from '../src/shared/engine/share.ts';
 import { replay } from '../src/shared/engine/step.ts';
-import type { Dir } from '../src/shared/engine/types.ts';
+import { checkLevel, parseStudioLevel } from '../src/shared/engine/studio.ts';
+import type { Dir, Level } from '../src/shared/engine/types.ts';
 
 const PORT = Number(process.argv[2] ?? 4173);
 const ROOT = join(process.cwd(), 'dist', 'client');
@@ -96,6 +97,34 @@ const info = (day: number) => {
   };
 };
 
+/** Boards "posted" from Flock Studio in this preview, by id. Open one with ?studio=N. */
+const studioBoards = new Map<number, Level>();
+
+/** The puzzle a page plays, and the key its saved results use. Studio boards use keys from 10001. */
+const puzzleAt = (page: URL) => {
+  const id = Number(page.searchParams.get('studio'));
+  const level = Number.isInteger(id) ? studioBoards.get(id) : undefined;
+  if (level) {
+    const check = checkLevel(level);
+    const par = check.ok ? check.par : 0;
+    return {
+      key: 10_000 + id,
+      studio: true,
+      puzzle: {
+        day: id,
+        label: 'Community',
+        twist: false,
+        level,
+        par,
+        crownPar: check.ok ? check.crownPar : null,
+        custom: { id, by: 'preview' },
+      },
+    };
+  }
+  const day = dayOf(page);
+  return { key: day, studio: false, puzzle: info(day) };
+};
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`);
   const isSolo =
@@ -114,6 +143,28 @@ const server = createServer(async (req, res) => {
       commented.add(day);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ type: 'comment', outcome }));
+      return;
+    }
+    if (url.pathname === '/api/studio/post' && req.method === 'POST') {
+      let raw = '';
+      for await (const chunk of req) raw += chunk;
+      const level = parseStudioLevel(JSON.parse(raw).level);
+      const check = level ? checkLevel(level) : null;
+      if (!level || !check?.ok) {
+        const reason = check && !check.ok ? check.reason : 'That board could not be read';
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'error', message: reason }));
+        return;
+      }
+      const id = studioBoards.size + 1;
+      studioBoards.set(id, level);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          type: 'studio-post',
+          url: `http://localhost:${PORT}/game.html?studio=${id}`,
+        })
+      );
       return;
     }
     if (url.pathname === '/api/sound' && req.method === 'POST') {
@@ -142,12 +193,14 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/api/init') {
       const pageUrl = new URL(req.headers.referer ?? url.href);
-      const day = dayOf(pageUrl);
+      const { key: day, puzzle, studio } = puzzleAt(pageUrl);
       // ?today=N pretends the calendar has moved on, so this post is an old puzzle.
       const todayParam = Number(pageUrl.searchParams.get('today'));
-      const today =
-        Number.isInteger(todayParam) && todayParam > day ? todayParam : day;
-      const puzzle = info(day);
+      const today = studio
+        ? 3
+        : Number.isInteger(todayParam) && todayParam > day
+          ? todayParam
+          : day;
       const prior = saved.get(day);
       const out = json({
         type: 'init',
@@ -186,8 +239,7 @@ const server = createServer(async (req, res) => {
       let raw = '';
       for await (const chunk of req) raw += chunk;
       const parsed = JSON.parse(raw);
-      const day = dayOf(new URL(req.headers.referer ?? url.href));
-      const puzzle = info(day);
+      const { key: day, puzzle } = puzzleAt(new URL(req.headers.referer ?? url.href));
       const outcome = replay(puzzle.level, parsed.moves);
       if (!outcome?.solved) {
         const bad = json({ status: 'error', message: 'Not a solution' }, 400);

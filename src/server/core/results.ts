@@ -1,7 +1,8 @@
 import { redis } from '@devvit/web/server';
 import { isCrown, ratingFor } from '../../shared/engine/share.ts';
 import { replay } from '../../shared/engine/step.ts';
-import { dayKey } from './puzzle.ts';
+import { dayKey, puzzleSlot } from './puzzle.ts';
+import type { Slot } from './puzzle.ts';
 import type { Dir } from '../../shared/engine/types.ts';
 import type {
   Community,
@@ -37,7 +38,7 @@ export const getStoredResult = async (
   puzzle: PuzzleInfo,
   userId: string
 ): Promise<ResultInfo | null> => {
-  const text = await redis.hGet(dayKey('r', puzzle.day), userId);
+  const text = await redis.hGet(dayKey('r', puzzleSlot(puzzle)), userId);
   if (!text) return null;
   const moves = parseMoves(text);
   return moves.length > 0 ? toResult(puzzle, moves) : null;
@@ -51,7 +52,7 @@ export const getBestResult = async (
   puzzle: PuzzleInfo,
   userId: string
 ): Promise<ResultInfo | null> => {
-  const text = await redis.hGet(dayKey('b', puzzle.day), userId);
+  const text = await redis.hGet(dayKey('b', puzzleSlot(puzzle)), userId);
   const moves = text ? parseMoves(text) : [];
   if (moves.length > 0) return toResult(puzzle, moves);
   return getStoredResult(puzzle, userId);
@@ -65,7 +66,7 @@ export const saveBestResult = async (
 ): Promise<ResultInfo> => {
   const current = await getBestResult(puzzle, userId);
   if (current && current.moves <= moves.length) return current;
-  await redis.hSet(dayKey('b', puzzle.day), { [userId]: moves.join('') });
+  await redis.hSet(dayKey('b', puzzleSlot(puzzle)), { [userId]: moves.join('') });
   return toResult(puzzle, moves);
 };
 
@@ -74,7 +75,7 @@ export const getBestCrown = async (
   userId: string
 ): Promise<ResultInfo | null> => {
   if (puzzle.crownPar === null) return null;
-  const text = await redis.hGet(dayKey('k', puzzle.day), userId);
+  const text = await redis.hGet(dayKey('k', puzzleSlot(puzzle)), userId);
   const moves = text ? parseMoves(text) : [];
   return moves.length > 0 ? toResult(puzzle, moves) : null;
 };
@@ -95,10 +96,10 @@ export const saveBestCrown = async (
   const round = toResult(puzzle, moves);
   if (!round.feather) return current;
   if (current && current.moves <= round.moves) return current;
-  await redis.hSet(dayKey('k', puzzle.day), { [userId]: moves.join('') });
+  await redis.hSet(dayKey('k', puzzleSlot(puzzle)), { [userId]: moves.join('') });
   const wasCrown = current !== null && isCrown(current.moves, crownPar);
   if (!wasCrown && isCrown(round.moves, crownPar)) {
-    await redis.hIncrBy(dayKey('s', puzzle.day), 'crowned', 1);
+    await redis.hIncrBy(dayKey('s', puzzleSlot(puzzle)), 'crowned', 1);
   }
   return round;
 };
@@ -112,11 +113,11 @@ const leaderScore = (moves: number, now: number): number =>
 
 /** Adds a player's first solve to the day's top solvers. */
 export const addLeader = async (
-  day: number,
+  slot: Slot,
   username: string,
   moves: number
 ): Promise<void> => {
-  await redis.zAdd(dayKey('l', day), {
+  await redis.zAdd(dayKey('l', slot), {
     member: username,
     score: leaderScore(moves, Date.now()),
   });
@@ -124,32 +125,35 @@ export const addLeader = async (
 
 /**
  * Marks that a player earned the Crown on this puzzle, for the badge on the top
- * solvers list, and counts it once towards their Crown total (field `crw`).
- * Returns true only the first time for this puzzle.
+ * solvers list. A daily Crown also counts once towards their Crown total (field
+ * `crw`, shown in flair). Studio boards never count, so nobody can build an easy
+ * board to collect Crowns. Returns true only the first time for this puzzle.
  */
 export const markCrowned = async (
-  day: number,
+  slot: Slot,
   username: string,
   userId: string
 ): Promise<boolean> => {
-  const added = await redis.hSetNX(dayKey('w', day), username, '1');
+  const added = await redis.hSetNX(dayKey('w', slot), username, '1');
   if (added !== 1) return false;
-  await redis.hIncrBy(`flock:u:${userId}`, 'crw', 1);
+  if (typeof slot === 'number') {
+    await redis.hIncrBy(`flock:u:${userId}`, 'crw', 1);
+  }
   return true;
 };
 
 const TOP = 3;
 
 export const getLeaders = async (
-  day: number,
+  slot: Slot,
   username: string | undefined
 ): Promise<Leaders> => {
-  const key = dayKey('l', day);
+  const key = dayKey('l', slot);
   const [top, total, rank, crowned] = await Promise.all([
     redis.zRange(key, 0, TOP - 1, { by: 'rank' }),
     redis.zCard(key),
     username ? redis.zRank(key, username) : Promise.resolve(undefined),
-    redis.hGetAll(dayKey('w', day)),
+    redis.hGetAll(dayKey('w', slot)),
   ]);
   return {
     top: top.map((entry) => ({
@@ -169,13 +173,13 @@ export const recordResult = async (
   moves: Dir[]
 ): Promise<boolean> => {
   const created = await redis.hSetNX(
-    dayKey('r', puzzle.day),
+    dayKey('r', puzzleSlot(puzzle)),
     userId,
     moves.join('')
   );
   if (!created) return false;
-  await redis.hIncrBy(dayKey('h', puzzle.day), String(moves.length), 1);
-  const statsKey = dayKey('s', puzzle.day);
+  await redis.hIncrBy(dayKey('h', puzzleSlot(puzzle)), String(moves.length), 1);
+  const statsKey = dayKey('s', puzzleSlot(puzzle));
   await redis.hIncrBy(statsKey, 'solved', 1);
   if (moves.length === puzzle.par) {
     await redis.hIncrBy(statsKey, 'atPar', 1);
@@ -191,7 +195,7 @@ export const getCommunity = async (
   puzzle: PuzzleInfo,
   myFirstMoves: number | null
 ): Promise<Community> => {
-  const raw = await redis.hGetAll(dayKey('h', puzzle.day));
+  const raw = await redis.hGetAll(dayKey('h', puzzleSlot(puzzle)));
   let atPar = 0;
   let near = 0;
   let far = 0;
@@ -223,26 +227,26 @@ export const getCommunity = async (
  * already had, so each player posts their result at most once per puzzle.
  */
 export const claimComment = async (
-  day: number,
+  slot: Slot,
   userId: string
 ): Promise<boolean> =>
-  (await redis.hSetNX(dayKey('c', day), userId, String(Date.now()))) === 1;
+  (await redis.hSetNX(dayKey('c', slot), userId, String(Date.now()))) === 1;
 
 export const releaseComment = async (
-  day: number,
+  slot: Slot,
   userId: string
 ): Promise<void> => {
-  await redis.hDel(dayKey('c', day), [userId]);
+  await redis.hDel(dayKey('c', slot), [userId]);
 };
 
 export const hasCommented = async (
-  day: number,
+  slot: Slot,
   userId: string | undefined
 ): Promise<boolean> =>
-  userId ? (await redis.hGet(dayKey('c', day), userId)) !== undefined : false;
+  userId ? (await redis.hGet(dayKey('c', slot), userId)) !== undefined : false;
 
-export const getStats = async (day: number): Promise<DayStats> => {
-  const raw = await redis.hGetAll(dayKey('s', day));
+export const getStats = async (slot: Slot): Promise<DayStats> => {
+  const raw = await redis.hGetAll(dayKey('s', slot));
   return {
     solved: Number(raw['solved'] ?? 0),
     atPar: Number(raw['atPar'] ?? 0),

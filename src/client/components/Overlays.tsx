@@ -119,6 +119,12 @@ export type JoinState = 'idle' | 'joining' | 'joined' | 'hidden';
 
 type ResultCardProps = {
   day: number;
+  /** "Flock #12", or "Community Flock by u/name" on a Studio board. */
+  title: string;
+  /** Who built this board in Flock Studio, or null for a daily puzzle. */
+  author: string | null;
+  /** Opens Flock Studio. */
+  onStudio: () => void;
   /** The round just played, or the best solve when the card opens on load. */
   result: ResultInfo;
   /** The player's best solve. Sharing always uses this. */
@@ -174,6 +180,9 @@ const COMMENT_LABEL: Record<CommentState, string> = {
 
 export const ResultCard = ({
   day,
+  title,
+  author,
+  onStudio,
   result,
   best,
   bestCrown,
@@ -205,6 +214,7 @@ export const ResultCard = ({
   const sender = challenge?.by ? `u/${challenge.by}` : 'your friend';
   const share = resultText({
     day,
+    title,
     moves: best.moves,
     par: best.par,
     streak: isToday ? streak.current : 0,
@@ -363,12 +373,14 @@ export const ResultCard = ({
           </p>
         ) : onToday ? (
           <button type="button" className="today-pill" onClick={onToday}>
-            Old puzzle · Play today&apos;s Flock #{today} →
+            {author !== null
+              ? `Play today's daily: Flock #${today} →`
+              : `Old puzzle · Play today's Flock #${today} →`}
           </button>
         ) : (
           <p className="muted">
-            Practice puzzle, so your streak is unchanged. Today&apos;s puzzle is
-            Flock #{today}.
+            {author !== null ? 'Community puzzle' : 'Practice puzzle'}, so
+            your streak is unchanged. Today&apos;s puzzle is Flock #{today}.
           </p>
         )}
         {saveError ? (
@@ -416,7 +428,7 @@ export const ResultCard = ({
             aria-label="Share a challenge link"
             onClick={() =>
               void shareResult(
-                `Flock #${day}`,
+                title,
                 `${share}\nCan you beat it?`,
                 encodeChallenge({ day, moves: best.moves, by: username })
               )
@@ -435,23 +447,24 @@ export const ResultCard = ({
             <span className="lbl-short">Replay</span>
           </button>
         </div>
-        {loggedIn && join !== 'hidden' ? (
-          <button
-            type="button"
-            className="join-pill"
-            onClick={onJoin}
-            disabled={join !== 'idle'}
-          >
-            {join === 'joined' ? (
-              `✓ Joined r/${subredditName}`
-            ) : (
-              <>
-                🔔 Join r/{subredditName}
-                <span className="lbl-long"> for tomorrow&apos;s puzzle</span>
-              </>
-            )}
+        <div className="card-links">
+          {loggedIn && join !== 'hidden' ? (
+            <button
+              type="button"
+              className="join-pill"
+              onClick={onJoin}
+              disabled={join !== 'idle'}
+            >
+              {join === 'joined'
+                ? `✓ Joined r/${subredditName}`
+                : `🔔 Join r/${subredditName}`}
+            </button>
+          ) : null}
+          <button type="button" className="studio-link" onClick={onStudio}>
+            ✏️ <span className="lbl-long">Build your own puzzle</span>
+            <span className="lbl-short">Build a puzzle</span>
           </button>
-        ) : null}
+        </div>
       </div>
     </div>
   );

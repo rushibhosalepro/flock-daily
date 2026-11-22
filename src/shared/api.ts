@@ -9,6 +9,11 @@ export type PuzzleInfo = {
   par: number;
   /** Fewest moves for a Crown, or null on a day without a feather. */
   crownPar: number | null;
+  /**
+   * Set on a board a player built in Flock Studio. Its `day` field then holds
+   * the board's id, and it never counts towards the daily streak.
+   */
+  custom?: { id: number; by: string };
 };
 
 export type ResultInfo = {
@@ -120,6 +125,11 @@ export type CommentResponse = {
 export type SoundResponse = {
   type: 'sound';
   saved: boolean;
+};
+export type StudioPostResponse = {
+  type: 'studio-post';
+  /** The new post, so the game can open it. */
+  url: string;
 };
 export type JoinResponse = {
   type: 'join';
