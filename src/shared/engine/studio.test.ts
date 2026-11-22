@@ -106,16 +106,48 @@ test('levels from a client are rebuilt, never trusted', () => {
   assert.equal(parseStudioLevel(null), null);
   assert.equal(parseStudioLevel({ walls: [], starts: [0, 1], nests: [2, 3, 4] }), null);
   assert.equal(parseStudioLevel({ walls: [99], starts: [0, 1, 2], nests: [3, 4, 5] }), null);
+  assert.equal(
+    parseStudioLevel({ walls: [], starts: [0, 1, 2], nests: [3, 4, 5], kinds: ['fast', 'normal', 'normal'] }),
+    null
+  );
   const parsed = parseStudioLevel({
     walls: [9, 3],
     starts: [0, 1, 2],
     nests: [20, 21, 22],
-    kinds: ['contrary', 'contrary', 'contrary'],
+    kinds: ['normal', 'normal', 'contrary'],
     size: 9,
   });
-  assert.deepEqual(parsed?.kinds, ['normal', 'normal', 'normal']);
+  assert.deepEqual(parsed?.kinds, ['normal', 'normal', 'contrary']);
   assert.equal(parsed?.size, 5);
   assert.deepEqual(parsed?.walls, [3, 9]);
+  const noKinds = parseStudioLevel({ walls: [], starts: [0, 1, 2], nests: [20, 21, 22] });
+  assert.deepEqual(noKinds?.kinds, ['normal', 'normal', 'normal']);
+});
+
+test('the twist tool flips a bird and does nothing elsewhere', () => {
+  let d = applyTool(EMPTY_DRAFT, { kind: 'bird', bird: 2 }, 7);
+  d = applyTool(d, { kind: 'twist' }, 7);
+  assert.deepEqual(d.kinds, ['normal', 'normal', 'contrary']);
+  assert.equal(d.starts[2], 7, 'the bird stays where it is');
+  assert.equal(applyTool(d, { kind: 'twist' }, 12), d, 'an empty cell is left alone');
+  d = applyTool(d, { kind: 'twist' }, 7);
+  assert.deepEqual(d.kinds, ['normal', 'normal', 'normal']);
+});
+
+test('twisted birds play by the twist rule, and twisting all three is refused', () => {
+  const daily = puzzleForDay(5);
+  assert.ok(daily.twist, 'day 5 is a Twist day');
+  const check = checkLevel(daily.level);
+  assert.ok(check.ok && check.par === daily.solution.par, 'same par as the daily Twist board');
+  const all = checkLevel({ ...daily.level, kinds: ['contrary', 'contrary', 'contrary'] });
+  assert.ok(!all.ok && all.reason.includes('Twist one or two'));
+});
+
+test('a twist changes the fingerprint', () => {
+  assert.notEqual(
+    levelFingerprint(level({})),
+    levelFingerprint(level({ kinds: ['normal', 'contrary', 'normal'] }))
+  );
 });
 
 test('the fingerprint ignores hedge order', () => {

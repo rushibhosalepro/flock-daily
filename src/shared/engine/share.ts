@@ -1,4 +1,4 @@
-import type { Dir } from './types.ts';
+import type { BirdKind, Dir } from './types.ts';
 
 export type Rating = 'Perfect' | 'Excellent' | 'Good' | 'Completed';
 
@@ -18,6 +18,20 @@ export const arrows = (moves: readonly Dir[]): string =>
 /** A Crown solve: every bird home with the feather, in no more than Crown par moves. */
 export const isCrown = (moves: number, crownPar: number): boolean =>
   moves <= crownPar;
+
+const BIRD_WORDS = ['red', 'blue', 'yellow'] as const;
+
+/**
+ * Which birds fly the other way, as a phrase: "the yellow bird flies the other
+ * way" or "the red and blue birds fly the other way". Null when none do.
+ */
+export const twistPhrase = (kinds: readonly BirdKind[]): string | null => {
+  const names = BIRD_WORDS.filter((_, i) => kinds[i] === 'contrary');
+  if (names.length === 0) return null;
+  return names.length === 1
+    ? `the ${names[0]} bird flies the other way`
+    : `the ${names.join(' and ')} birds fly the other way`;
+};
 
 /** The puzzle's name: "Flock #12", or "Community Flock by u/name" for a Studio board. */
 export const puzzleTitle = (day: number, by: string | null): string =>

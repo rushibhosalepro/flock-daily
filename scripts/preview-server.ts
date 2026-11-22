@@ -113,7 +113,7 @@ const puzzleAt = (page: URL) => {
       puzzle: {
         day: id,
         label: 'Community',
-        twist: false,
+        twist: level.kinds.includes('contrary'),
         level,
         par,
         crownPar: check.ok ? check.crownPar : null,

@@ -1611,7 +1611,7 @@ button:focus-visible,
   grid-area: tools;
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(9, minmax(0, 42px));
+  grid-template-columns: repeat(10, minmax(0, 42px));
   justify-content: center;
   gap: 4px;
 }
@@ -1640,6 +1640,10 @@ button:focus-visible,
   box-shadow:
     0 0 0 3px var(--accent) inset,
     0 2px 0 var(--accent-dark);
+}
+
+.twist-glyph {
+  color: #6a4bc4;
 }
 
 .erase-glyph {
@@ -1794,11 +1798,18 @@ button:focus-visible,
 }
 
 .pill.author {
-  min-width: 0;
-  max-width: 46cqw;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   background: #ece6ff;
   color: #4b3696;
+}
+
+/* The desktop panel is 232px wide: tighten the header so "Flock [Community]" fits beside the buttons. */
+@container app (min-aspect-ratio: 23 / 20) {
+  .stage .topbar .title {
+    gap: 6px;
+  }
+  .stage .pill.author {
+    padding: 3px 8px;
+    font-size: 12px;
+  }
 }

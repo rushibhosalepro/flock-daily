@@ -14,6 +14,7 @@ import {
   parseChallenge,
   puzzleTitle,
   ratingFor,
+  twistPhrase,
 } from '../shared/engine/share.ts';
 import type { Dir } from '../shared/engine/types.ts';
 import type { GameState } from './hooks/useGame.ts';
@@ -357,6 +358,7 @@ const Game = ({ init }: { init: InitResponse }) => {
   const sender = challenge?.by ? `u/${challenge.by}` : 'A friend';
   const todayUrl = init.isToday ? null : init.todayUrl;
   const author = puzzle.custom?.by ?? null;
+  const twist = twistPhrase(puzzle.level.kinds);
   const goToday = () => {
     if (!todayUrl) return;
     try {
@@ -366,7 +368,7 @@ const Game = ({ init }: { init: InitResponse }) => {
     }
   };
   const hasBanner =
-    replay !== null || todayUrl !== null || showChallenge || puzzle.twist;
+    replay !== null || todayUrl !== null || showChallenge || twist !== null;
   const homeFlags = [0, 1, 2].map(
     (i) => frame.current[i] === puzzle.level.nests[i]
   );
@@ -385,10 +387,10 @@ const Game = ({ init }: { init: InitResponse }) => {
       <div className={`stage${hasBanner ? ' has-twist' : ''}`}>
         <header className="topbar">
           <div className="title">
-            {author !== null ? 'Community Flock' : `Flock #${puzzle.day}`}
+            {author !== null ? 'Flock' : `Flock #${puzzle.day}`}
             {author !== null ? (
               <span className="pill author" title={`Built by u/${author}`}>
-                by u/{author}
+                Community
               </span>
             ) : (
               <span className={`pill${puzzle.twist ? ' twist' : ''}`}>
@@ -427,16 +429,17 @@ const Game = ({ init }: { init: InitResponse }) => {
               Skip
             </button>
           </div>
-        ) : todayUrl ? (
+        ) : todayUrl && !(author !== null && twist !== null) ? (
+          // On a twisted Studio board the twist banner wins: players need it to play.
           <div className="replay-bar today-bar">
             <span>
               <span className="today-long">
                 {author !== null
-                  ? `Community puzzle. Today's daily is Flock #${init.today}.`
+                  ? `Built by u/${author}.`
                   : `Old puzzle. Today is Flock #${init.today}.`}
               </span>
               <span className="today-short">
-                {author !== null ? 'Community puzzle' : 'Older puzzle'}
+                {author !== null ? `By u/${author}` : 'Older puzzle'}
               </span>
             </span>
             <button type="button" className="btn primary" onClick={goToday}>
@@ -447,10 +450,8 @@ const Game = ({ init }: { init: InitResponse }) => {
           <div className="twist-banner challenge-banner">
             {sender} did this in {challenge.moves} moves. Can you match it?
           </div>
-        ) : puzzle.twist ? (
-          <div className="twist-banner">
-            Twist: the yellow bird flies the other way ⇄
-          </div>
+        ) : twist !== null ? (
+          <div className="twist-banner">Twist: {twist} ⇄</div>
         ) : null}
 
         <div className="hud">
@@ -595,7 +596,7 @@ const Game = ({ init }: { init: InitResponse }) => {
 
       {helpOpen ? (
         <Tutorial
-          twist={puzzle.twist}
+          twist={twist}
           crown={puzzle.crownPar !== null}
           onClose={closeHelp}
         />

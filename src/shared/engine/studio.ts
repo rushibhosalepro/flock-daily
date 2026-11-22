@@ -5,7 +5,7 @@
  */
 import { solve, solveCrown } from './solver.ts';
 import { validateLevel } from './step.ts';
-import type { BirdIndex, Level } from './types.ts';
+import type { BirdIndex, BirdKind, Level } from './types.ts';
 
 export const STUDIO_SIZE = 5;
 /** Fewer moves than this is not a puzzle. */
@@ -19,6 +19,8 @@ export type Draft = {
   starts: readonly [number | null, number | null, number | null];
   nests: readonly [number | null, number | null, number | null];
   feather: number | null;
+  /** A contrary bird flies opposite to the swipe, as on daily Twist days. */
+  kinds: readonly [BirdKind, BirdKind, BirdKind];
 };
 
 export type Tool =
@@ -26,6 +28,8 @@ export type Tool =
   | { kind: 'bird'; bird: BirdIndex }
   | { kind: 'nest'; bird: BirdIndex }
   | { kind: 'feather' }
+  /** Tapped on a bird, flips it between flying normally and flying the other way. */
+  | { kind: 'twist' }
   | { kind: 'erase' };
 
 export const EMPTY_DRAFT: Draft = {
@@ -33,6 +37,7 @@ export const EMPTY_DRAFT: Draft = {
   starts: [null, null, null],
   nests: [null, null, null],
   feather: null,
+  kinds: ['normal', 'normal', 'normal'],
 };
 
 const without = (
@@ -46,6 +51,7 @@ const without = (
 
 /** Removes whatever is on a cell. */
 const clear = (draft: Draft, cell: number): Draft => ({
+  ...draft,
   walls: draft.walls.filter((w) => w !== cell),
   starts: without(draft.starts, cell),
   nests: without(draft.nests, cell),
@@ -94,6 +100,13 @@ export const applyTool = (draft: Draft, tool: Tool, cell: number): Draft => {
     return draft;
   }
   const current = itemAt(draft, cell);
+  if (tool.kind === 'twist') {
+    // Twist changes a bird in place and does nothing on any other cell.
+    if (current?.kind !== 'bird') return draft;
+    const kinds: [BirdKind, BirdKind, BirdKind] = [...draft.kinds];
+    kinds[current.bird] = kinds[current.bird] === 'contrary' ? 'normal' : 'contrary';
+    return { ...draft, kinds };
+  }
   const base = clear(draft, cell);
   if (tool.kind === 'erase' || sameTool(current, tool)) return base;
   switch (tool.kind) {
@@ -120,7 +133,7 @@ export const missingPieces = (draft: Draft): string[] => {
   return out;
 };
 
-/** The level a finished draft describes, or null while pieces are missing. Studio birds all fly normally. */
+/** The level a finished draft describes, or null while pieces are missing. */
 export const draftLevel = (draft: Draft): Level | null => {
   const [s0, s1, s2] = draft.starts;
   const [n0, n1, n2] = draft.nests;
@@ -131,7 +144,7 @@ export const draftLevel = (draft: Draft): Level | null => {
     walls: draft.walls,
     starts: [s0, s1, s2],
     nests: [n0, n1, n2],
-    kinds: ['normal', 'normal', 'normal'],
+    kinds: draft.kinds,
     ...(draft.feather !== null ? { feather: draft.feather } : {}),
   };
 };
@@ -143,8 +156,11 @@ export type StudioCheck =
 /** Whether a built board can be posted, and if so its par and Crown par. */
 export const checkLevel = (level: Level): StudioCheck => {
   if (level.size !== STUDIO_SIZE) return { ok: false, reason: 'Boards are 5 by 5.' };
-  if (level.kinds.some((kind) => kind !== 'normal')) {
-    return { ok: false, reason: 'Studio birds all fly the normal way.' };
+  if (level.kinds.every((kind) => kind === 'contrary')) {
+    return {
+      ok: false,
+      reason: 'With every bird twisted it plays the same as none. Twist one or two.',
+    };
   }
   const problem = validateLevel(level);
   if (problem === 'level starts solved') {
@@ -185,6 +201,7 @@ export const levelFingerprint = (level: Level): string =>
     level.starts.join('.'),
     level.nests.join('.'),
     level.feather ?? '-',
+    level.kinds.map((kind) => (kind === 'contrary' ? 'x' : 'n')).join(''),
   ].join('|');
 
 const isCell = (value: unknown): value is number =>
@@ -196,9 +213,16 @@ const isCell = (value: unknown): value is number =>
 const isTriple = (value: unknown): value is [number, number, number] =>
   Array.isArray(value) && value.length === 3 && value.every(isCell);
 
+const isKind = (value: unknown): value is BirdKind =>
+  value === 'normal' || value === 'contrary';
+
+const isKinds = (value: unknown): value is [BirdKind, BirdKind, BirdKind] =>
+  Array.isArray(value) && value.length === 3 && value.every(isKind);
+
 /**
- * Reads a level sent by a client. Anything malformed returns null. Size and
- * bird kinds are fixed here, never taken from the request.
+ * Reads a level sent by a client. Anything malformed returns null. The board
+ * size is fixed here, never taken from the request. Missing bird kinds mean
+ * every bird flies normally.
  */
 export const parseStudioLevel = (value: unknown): Level | null => {
   if (typeof value !== 'object' || value === null) return null;
@@ -206,6 +230,8 @@ export const parseStudioLevel = (value: unknown): Level | null => {
   const starts = Reflect.get(value, 'starts');
   const nests = Reflect.get(value, 'nests');
   const feather = Reflect.get(value, 'feather');
+  const kinds = Reflect.get(value, 'kinds');
+  if (kinds !== undefined && !isKinds(kinds)) return null;
   if (!Array.isArray(walls) || walls.length > 19 || !walls.every(isCell)) return null;
   if (!isTriple(starts) || !isTriple(nests)) return null;
   if (feather !== undefined && feather !== null && !isCell(feather)) return null;
@@ -214,7 +240,7 @@ export const parseStudioLevel = (value: unknown): Level | null => {
     walls: [...walls].sort((a, b) => a - b),
     starts,
     nests,
-    kinds: ['normal', 'normal', 'normal'],
+    kinds: kinds ?? ['normal', 'normal', 'normal'],
     ...(isCell(feather) ? { feather } : {}),
   };
 };

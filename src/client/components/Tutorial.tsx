@@ -7,8 +7,8 @@ import { useBoardSounds } from '../hooks/useBoardSounds.ts';
 import { Board } from './Board.tsx';
 
 type TutorialProps = {
-  /** Today's puzzle has the twist bird, so mention it on the last step. */
-  twist: boolean;
+  /** Which birds fly the other way on this board, e.g. "the yellow bird flies the other way", or null. */
+  twist: string | null;
   /** Today's puzzle has a golden feather. */
   crown: boolean;
   onClose: () => void;
@@ -82,7 +82,7 @@ export const Tutorial = ({ twist, crown, onClose }: TutorialProps) => {
               {crown
                 ? ' Bonus: land a bird on the golden feather for a 👑.'
                 : ''}
-              {twist ? ' Today the yellow bird flies the other way.' : ''}
+              {twist ? ` Today ${twist}.` : ''}
             </p>
             <button type="button" className="btn primary" onClick={onClose}>
               Play today&apos;s puzzle

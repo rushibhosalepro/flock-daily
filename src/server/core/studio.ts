@@ -32,7 +32,7 @@ const memory = new Map<number, PuzzleInfo>();
 const toPuzzle = (id: number, board: StoredBoard): PuzzleInfo => ({
   day: id,
   label: 'Community',
-  twist: false,
+  twist: board.level.kinds.includes('contrary'),
   level: board.level,
   par: board.par,
   crownPar: board.crownPar,
@@ -96,7 +96,9 @@ export const postStudioBoard = async (
   const board: StoredBoard = { level, par: check.par, crownPar: check.crownPar, by: username };
   try {
     await redis.set(boardKey(id), JSON.stringify(board));
-    const crown = check.crownPar !== null ? ' · 👑' : '';
+    const crown =
+      (check.crownPar !== null ? ' · 👑' : '') +
+      (level.kinds.includes('contrary') ? ' · Twist' : '');
     const post = await reddit.submitCustomPost({
       runAs: 'USER',
       userGeneratedContent: {

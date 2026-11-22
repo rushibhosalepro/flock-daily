@@ -11,6 +11,7 @@ import {
   missingPieces,
 } from '../../shared/engine/studio.ts';
 import type { Draft, Tool } from '../../shared/engine/studio.ts';
+import { twistPhrase } from '../../shared/engine/share.ts';
 import { postStudioBoard } from '../api.ts';
 import { BIRD_LABELS } from '../constants.ts';
 import { BirdArt, FeatherArt, NestArt, WallArt } from './Art.tsx';
@@ -30,6 +31,11 @@ const TOOLS: readonly ToolButton[] = [
     art: <NestArt index={bird} />,
   })),
   { tool: { kind: 'feather' }, label: 'Golden feather', art: <FeatherArt /> },
+  {
+    tool: { kind: 'twist' },
+    label: 'Twist: tap a bird to make it fly the other way',
+    art: <span className="erase-glyph twist-glyph">⇄</span>,
+  },
   { tool: { kind: 'erase' }, label: 'Eraser', art: <span className="erase-glyph">⌫</span> },
 ];
 
@@ -89,9 +95,12 @@ export const Studio = ({
   }, [draft]);
 
   const missing = missingPieces(draft);
+  const twist = twistPhrase(draft.kinds);
   const ready = checked !== null && checked.check.ok;
   const status: { text: string; tone: 'hint' | 'bad' | 'ok' } =
-    missing.length === 6
+    tool.kind === 'twist' && missing.length > 0
+      ? { text: 'Tap a bird to make it fly opposite to the swipe. Tap again to undo.', tone: 'hint' }
+      : missing.length === 6
       ? { text: 'Pick a piece, then tap the board. You need 3 birds and their nests.', tone: 'hint' }
       : missing.length > 0
         ? { text: `Still to place: ${joinList(missing)}.`, tone: 'hint' }
@@ -102,8 +111,8 @@ export const Studio = ({
             : {
                 text:
                   checked.check.crownPar !== null
-                    ? `✓ Par ${checked.check.par} · 👑 Crown par ${checked.check.crownPar}`
-                    : `✓ Par ${checked.check.par}. Add a feather for a Crown, if you like.`,
+                    ? `✓ Par ${checked.check.par} · 👑 Crown par ${checked.check.crownPar}${twist ? ' · ⇄ Twist' : ''}`
+                    : `✓ Par ${checked.check.par}${twist ? ' · ⇄ Twist' : ''}. Add a feather for a Crown, if you like.`,
                 tone: 'ok',
               };
 
@@ -178,7 +187,7 @@ export const Studio = ({
               const cell = draft.starts[bird];
               return cell === null ? null : (
                 <div key={`b${bird}`} className="piece bird" style={pos(cell)}>
-                  <BirdArt index={bird} contrary={false} />
+                  <BirdArt index={bird} contrary={draft.kinds[bird] === 'contrary'} />
                 </div>
               );
             })}
