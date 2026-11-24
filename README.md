@@ -1,6 +1,6 @@
 # Flock
 
-A daily puzzle where one swipe moves three birds at once. Get every bird onto the nest of its own color in as few moves as you can.
+One swipe moves the whole flock, but each bird stops on its own. Solve the daily puzzle in the fewest moves, detour for the golden feather, or build your own for the subreddit.
 
 **▶ Play today's puzzle: [r/FlockDaily](https://www.reddit.com/r/FlockDaily/)**
 
@@ -31,8 +31,21 @@ New players get a two-swipe tutorial that takes about 10 seconds.
 - **Top solvers today:** the day's top three by first-solve moves, with 👑 for Crown earners and your own place.
 - **Today's spread:** see how first solves split (at par, 1–2 over, 3+ over) and how many players you beat.
 - **Share challenge:** send a friend your score to beat. They see the score, never your moves.
+- **Streak & Crown flair:** regulars earn subreddit flair like *🔥 7-day streak · 👑 2*. It appears at a 3-day streak and changes colour at 7 and 30 days. A flair you picked yourself is never replaced.
+- **Daily recap:** each new results thread opens with yesterday's numbers: how many solved, how many hit par, Crowns, and the top three solvers.
 - **Join:** an optional button to join the community for tomorrow's puzzle.
 - **Older posts** still play as practice and link to today's puzzle.
+
+## Build your own puzzle
+
+![Flock Studio inside a Reddit post, with the solver showing Par 11 and Crown par 13](https://raw.githubusercontent.com/rushibhosalepro/flock-daily/main/docs/devpost/studio-editor.png)
+
+Tap **✏️ Build your own puzzle** on the result card to open **Flock Studio**.
+
+- **Build:** place hedges, the three birds, their nests and an optional golden feather. The ⇄ tool makes a bird fly against the swipe, like on Twist days.
+- **Check:** the solver checks the board on every tap. It shows Par and Crown par, or says why the board can't be posted: no route home, too easy, or a feather that makes the Crown free.
+- **Post:** one tap posts it to the subreddit as **Community Flock by u/you**, with its own results thread and top solvers. The server runs the same checks before posting.
+- **Fair play:** community boards don't count toward your daily streak or your Crown flair. Each player can post 5 boards a day, and the same board can't be posted twice.
 
 ## For moderators
 
@@ -51,4 +64,4 @@ Built with Devvit Web, React, TypeScript, Hono and Redis. The rules engine in `s
 - `node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/level-report.ts 28` prints par and difficulty for the first 28 puzzles
 - `node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/preview-server.ts` serves the built client with a mock API at http://localhost:4173/game.html?day=3
 
-Layout: `src/shared/engine/` (rules, solver, generator, daily plan), `src/server/` (routes, Redis, daily post), `src/client/` (React UI, played inline in the post), `docs/` (demo media).
+Layout: `src/shared/engine/` (rules, solver, generator, daily plan, Studio board rules), `src/shared/community.ts` (flair and recap text), `src/server/` (routes, Redis, daily post, flair, Studio posts), `src/client/` (React UI and Flock Studio, played inline in the post), `docs/` (demo media).

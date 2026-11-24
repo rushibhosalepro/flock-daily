@@ -255,8 +255,11 @@ export const ResultCard = ({
     first !== null && (first.moves !== result.moves || first.moves !== best.moves);
 
   const firstToday = stats.solved === 1 && first !== null;
+  // One quiet line for today's numbers. The first-try note sits here, beside the ranking it explains,
+  // so it never reads as a second score next to the headline.
   const communityLine = [
-    firstToday ? 'You are the first to solve today!' : `${stats.solved} solved`,
+    firstToday ? 'First to solve today!' : `${stats.solved} solved`,
+    showFirst && first ? `ranked on your first try (${first.moves})` : null,
     community.beat !== null ? `better than ${community.beat}%` : null,
     crownPar !== null && stats.crowned > 0 ? `👑 ${stats.crowned} crowned` : null,
   ]
@@ -356,11 +359,6 @@ export const ResultCard = ({
               </div>
             ) : null}
             <p className="muted">{communityLine}</p>
-            {showFirst && first ? (
-              <p className="muted first-line">
-                Today&apos;s stats use your first solve: {first.moves} moves.
-              </p>
-            ) : null}
           </div>
         ) : null}
 
